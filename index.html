@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#100d22" />
+    <meta name="description" content="Lichtpfad – ein Pixel-Jump'n'Run, in dem du die Gleichnisse Jesu spielst und Bibelverse entdeckst." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Lichtpfad" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <title>Lichtpfad</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+
+      <div id="hud" class="hud" hidden>
+        <div class="hud-item" title="Schafe"><img id="hud-sheep-icon" alt="Schafe" /><span id="hud-sheep">99/100</span></div>
+        <div class="hud-item" title="Versfragmente"><img id="hud-frag-icon" alt="Fragmente" /><span id="hud-frags">0/5</span></div>
+        <button id="btn-pause" class="hud-btn" aria-label="Pause">❚❚</button>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <div id="touch" class="touch" hidden>
+        <div id="dpad" class="dpad" aria-label="Laufen">
+          <span class="dpad-l" aria-hidden="true">◀</span>
+          <span class="dpad-r" aria-hidden="true">▶</span>
+        </div>
+        <div id="jump" class="jump" aria-label="Springen"><span aria-hidden="true">▲</span></div>
+      </div>
+
+      <div id="overlay" class="overlay" hidden></div>
+
+      <div id="rotate" class="rotate">
+        <div class="rotate-icon" aria-hidden="true">⟳</div>
+        <p>Bitte dreh dein Gerät quer.</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
