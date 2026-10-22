@@ -1,0 +1,38 @@
+{
+  "name": "wortstrom",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WORTSTROM – ein meditatives Entdeckungsspiel durch das Neue Testament, gebaut auf echten Bibel-Querverweisen.",
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/data/build.mjs",
+    "data:fetch": "node scripts/data/fetch.mjs",
+    "predev": "node scripts/data/build.mjs --if-needed",
+    "dev": "vite --host",
+    "prebuild": "node scripts/data/build.mjs --if-needed",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/albert-sans": "5.3.0",
+    "@fontsource/cormorant-garamond": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.0",
+    "pixi.js": "8.22.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "22.18.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "fflate": "0.8.3",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.11"
+  }
+}
