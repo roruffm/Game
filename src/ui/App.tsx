@@ -1,7 +1,7 @@
 // The interface layer over the world: start screen, a nearly invisible HUD, the card of the
 // node in focus, the encounter narration, panels and toasts.
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
 import { encounterById } from '../content/encounters';
 import { director } from '../director';
@@ -17,6 +17,7 @@ import { SettingsPanel } from './panels/Settings';
 export function App() {
   const phase = useStore((s) => s.phase);
   const panel = useStore((s) => s.panel);
+  const reveal = useStore((s) => s.reveal !== null);
   const error = useStore((s) => s.loadError);
 
   useEffect(() => {
@@ -29,10 +30,16 @@ export function App() {
           if (s.panel.type === 'encounterEnd') director.returnToWorld();
           else closePanel();
         } else if (s.phase === 'encounter') store.set({ confirmLeave: !s.confirmLeave });
+        else if (s.reveal) store.set({ reveal: null });
         else if (s.focus) store.set({ focus: null });
         return;
       }
       if (typing || s.phase === 'start' || s.phase === 'loading') return;
+      if (e.key === 'Enter' && !s.panel && s.reveal && s.phase === 'world') {
+        e.preventDefault();
+        director.openReveal();
+        return;
+      }
       if (e.key === 'Enter' && !s.panel && s.focus && s.phase === 'world') {
         e.preventDefault();
         director.activate(s.focus.chapter);
@@ -54,7 +61,8 @@ export function App() {
     <>
       {phase === 'start' && <Start />}
       {phase === 'world' && <Hud />}
-      {phase === 'world' && !panel && <FocusCard />}
+      {phase === 'world' && !panel && !reveal && <FocusCard />}
+      {phase === 'world' && !panel && reveal && <RideReveal />}
       {phase === 'encounter' && <EncounterOverlay />}
       {panel && <PanelHost panel={panel} />}
       <Toasts />
@@ -335,6 +343,48 @@ function EncounterOverlay() {
         </div>
       )}
     </div>
+  );
+}
+
+/** The verse a thread of light led to: caught words arrive first, the rest of the verse joins them. */
+function RideReveal() {
+  const reveal = useStore((s) => s.reveal);
+  if (!reveal) return null;
+  const caughtCount = reveal.words.filter((w) => w.caught).length;
+  let c = 0;
+  let f = 0;
+  return (
+    <figure key={reveal.id} className="reveal" role="status" aria-live="polite">
+      <p className="kicker">Lichtfaden · im Datensatz</p>
+      <blockquote>
+        {reveal.words.map((w, i) => {
+          const delay = w.caught ? c++ * 0.08 : caughtCount * 0.08 + 0.35 + f++ * 0.03;
+          return (
+            <Fragment key={i}>
+              <span className={w.caught ? 'w caught' : 'w'} style={{ animationDelay: `${delay.toFixed(2)}s` }}>
+                {w.text}
+              </span>{' '}
+            </Fragment>
+          );
+        })}
+        {reveal.truncated && <span className="w">…</span>}
+      </blockquote>
+      <figcaption>
+        {reveal.label}
+        {reveal.note && <span className="alt"> ({reveal.note})</span>} · Lutherbibel 1912
+      </figcaption>
+      <p className="source-line">
+        Querverweis {reveal.linkLabel} · {reveal.votes} Stimmen · OpenBible.info (CC BY 4.0)
+      </p>
+      <div className="row tight">
+        <button className="btn primary small" id="reveal-open" onClick={() => director.openReveal()}>
+          Verbindung ansehen
+        </button>
+        <button className="btn small" onClick={() => store.set({ reveal: null })}>
+          Weiter
+        </button>
+      </div>
+    </figure>
   );
 }
 

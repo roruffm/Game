@@ -187,6 +187,14 @@ class AudioEngine {
     steps[kind].forEach((n, i) => this.bell(BELLS[n % BELLS.length] * (kind === 'enter' ? 0.5 : 1), i * 0.16, kind === 'near' ? 0.04 : 0.07));
   }
 
+  /** A soft note for each word caught on a ride, climbing a little with every one. */
+  pluck(step: number) {
+    if (!this.ctx || !this.enabled) return;
+    const scale = [0, 1, 2, 4, 5];
+    const octave = Math.floor(step / scale.length) % 2;
+    this.bell(BELLS[scale[step % scale.length]] * (octave ? 2 : 1), 0, 0.03);
+  }
+
   private bell(freq: number, delay: number, level: number) {
     const ctx = this.ctx!;
     const t = ctx.currentTime + delay;

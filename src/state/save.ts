@@ -36,6 +36,8 @@ export interface SaveData {
   player: { x: number; y: number } | null;
   zoom: number | null;
   theme: string | null;
+  /** One-time hints already shown. */
+  tips: string[];
 }
 
 const KEY = 'wortstrom.save.v1';
@@ -50,6 +52,7 @@ export const freshSave = (reducedMotion = false): SaveData => ({
   player: null,
   zoom: null,
   theme: null,
+  tips: [],
 });
 
 export function loadSave(): { data: SaveData; existed: boolean } {

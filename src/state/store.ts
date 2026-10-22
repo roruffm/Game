@@ -39,6 +39,21 @@ export interface EncounterUi {
   done: boolean;
 }
 
+/** The verse a ride of light flows into, assembled from the words caught on the way. */
+export interface Reveal {
+  id: number;
+  chapter: number;
+  /** e.g. "Psalm 107,29" */
+  label: string;
+  note?: string;
+  words: { text: string; caught: boolean }[];
+  truncated: boolean;
+  /** The cross-reference in the dataset's direction, e.g. "Markus 4,39 → Psalm 107,29". */
+  linkLabel: string;
+  votes: number;
+  panel: Panel;
+}
+
 export interface Toast {
   id: number;
   text: string;
@@ -57,6 +72,7 @@ export interface UiState {
   zoom: number;
   activeTheme: string | null;
   traveling: boolean;
+  reveal: Reveal | null;
   /** Asks whether to leave the running encounter. */
   confirmLeave: boolean;
   /** Bumped whenever settings change, so the interface re-reads them. */
@@ -75,6 +91,7 @@ let state: UiState = {
   zoom: 1,
   activeTheme: null,
   traveling: false,
+  reveal: null,
   confirmLeave: false,
   settingsRev: 0,
 };

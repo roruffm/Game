@@ -15,6 +15,7 @@ import { clearSave, loadSave, persist, type Discovery, type SaveData, type Setti
 import { store, toast, type Panel } from './state/store';
 import type { GraphData, Thread } from './world/model';
 import { WorldModel } from './world/model';
+import type { RideInfo } from './world/ride';
 import { WorldScene } from './world/scene';
 import { CrossRefs, linkKey, type XLink } from './xref/crossrefs';
 
@@ -62,7 +63,9 @@ export class Director {
       this.xrefs = new CrossRefs(this.bible, fetchJson);
       // labels in the world are drawn by Pixi, which needs the fonts before it renders text
       await Promise.race([
-        Promise.all(['600 21px "Cormorant Garamond"', '500 16px "Cormorant Garamond"', '15px "Albert Sans"'].map((f) => document.fonts.load(f))),
+        Promise.all(
+          ['600 21px "Cormorant Garamond"', '500 16px "Cormorant Garamond"', '15px "Albert Sans"', 'italic 18px "Source Serif 4"'].map((f) => document.fonts.load(f)),
+        ),
         new Promise((r) => setTimeout(r, 2500)),
       ]).catch(() => undefined);
       this.game = await Game.create(stage);
@@ -75,6 +78,9 @@ export class Director {
         activate: (ch) => this.activate(ch),
         openThread: (t) => this.openThread(t),
         arrived: (ch) => this.arrived(ch),
+        rideInfo: (t, from, to) => this.rideInfo(t, from, to),
+        rideStarted: () => this.rideStarted(),
+        rideArrived: (r) => void this.rideArrived(r),
       });
       this.world.reducedView = this.save.settings.reducedView;
       this.model.onChange = () => this.changed();
@@ -190,6 +196,84 @@ export class Director {
     const to = from === thread.a ? thread.b : thread.a;
     this.setPanel({ type: 'link', a: { start: strongest.from, end: strongest.from }, b: this.clampToChapter(strongest, to), fromChapter: from, toChapter: to });
     this.markLink(strongest);
+    audio.chime('thread');
+  }
+
+  // ── Riding threads of light ──────────────────────────────────────────
+
+  /** The strongest cross-reference along a thread, seen from where the ride starts, and its verse. */
+  async rideInfo(thread: Thread, from: number, to: number): Promise<RideInfo> {
+    const own = thread.links.filter((l) => this.bible.chapterOf(l.from) === from);
+    const forward = own.length > 0;
+    const link = (forward ? own : thread.links).reduce((a, b) => (b.votes > a.votes ? b : a));
+    // the dataset's links have a direction; riding against it, the current flows into the source verse
+    const target = forward ? this.clampToChapter(link, to) : { start: link.from, end: link.from };
+    const verses = await this.bible.verses(target);
+    const shown: typeof verses = [];
+    const words: string[] = [];
+    for (const v of verses) {
+      const w = v.text.split(/\s+/).filter(Boolean);
+      if (shown.length && words.length + w.length > 45) break;
+      shown.push(v);
+      words.push(...w);
+    }
+    const shownRange = { start: shown[0].index, end: shown[shown.length - 1].index };
+    const linkTo = this.bible.chapterOf(link.start);
+    const linkFrom = this.bible.chapterOf(link.from);
+    const linkTarget = this.clampToChapter(link, linkTo);
+    const german = shown.length === 1 ? shown[0].germanNumber : undefined;
+    return {
+      link,
+      target,
+      shown: shownRange,
+      words,
+      label: this.bible.format(shownRange),
+      ...(german ? { note: `dt. ${german.replace(':', ',')}` } : {}),
+      truncated: shownRange.end < target.end,
+      linkLabel: `${this.bible.format({ start: link.from, end: link.from })} → ${this.bible.format(linkTarget)}`,
+      votes: link.votes,
+      panel: { type: 'link', a: { start: link.from, end: link.from }, b: linkTarget, fromChapter: linkFrom, toChapter: linkTo },
+    };
+  }
+
+  private rideStarted() {
+    if (this.save.tips.includes('ride')) return;
+    this.save.tips.push('ride');
+    persist(this.save);
+    toast('Ein Lichtfaden trägt dich.', 'Fang die Worte ein, die vorbeitreiben. Steuere seitlich hinaus, um die Strömung zu verlassen.', 7500);
+  }
+
+  private async rideArrived(r: { thread: Thread; from: number; to: number; info: RideInfo | null; caught: number[] }) {
+    const info = r.info ?? (await this.rideInfo(r.thread, r.from, r.to));
+    const caught = new Set(r.caught);
+    store.set((s) => ({
+      reveal: {
+        id: (s.reveal?.id ?? 0) + 1,
+        chapter: r.to,
+        label: info.label,
+        ...(info.note ? { note: info.note } : {}),
+        words: info.words.map((text, i) => ({ text, caught: caught.has(i) })),
+        truncated: info.truncated,
+        linkLabel: info.linkLabel,
+        votes: info.votes,
+        panel: info.panel,
+      },
+    }));
+    audio.chime('reveal');
+    audio.setMood('reveal', 1.2);
+    window.setTimeout(() => {
+      if (store.get().phase === 'world' && !store.get().traveling) audio.setMood('world', 4);
+    }, 5000);
+    this.markLink(info.link);
+    await this.discover({ start: info.target.start, end: info.target.end, chapter: r.to, kind: 'reference', via: linkKey(info.link), at: Date.now() });
+  }
+
+  /** From the verse card to the full comparison of both passages. */
+  openReveal() {
+    const reveal = store.get().reveal;
+    if (!reveal) return;
+    store.set({ reveal: null });
+    this.setPanel(reveal.panel);
     audio.chime('thread');
   }
 
@@ -360,6 +444,8 @@ export class Director {
         encounter: this.encounter ? { id: this.encounter.id, objective: this.encounter.scene.objective(), ui: store.get().encounter } : null,
         nodes: [...this.model.nodes.values()].map((n) => ({ chapter: n.chapter, kind: n.kind, title: n.title, x: n.x, y: n.y, completed: n.completed })),
         threads: this.model.threads.map((t) => ({ a: t.a, b: t.b, kind: t.kind, votes: t.votes, links: t.links.length })),
+        ride: this.world.rideState(),
+        reveal: store.get().reveal,
         stats: this.model.stats(),
         fps: this.game.frameRate,
       }),
