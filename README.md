@@ -1,73 +1,132 @@
-# Lichtpfad
+# WORTSTROM
 
-Ein Pixel-Jump'n'Run fürs Smartphone, in dem man die Gleichnisse Jesu spielt und Bibelverse entdeckt.
-Dieser Prototyp enthält **Welt 1, Level 1: „Das verlorene Schaf“** (Lukas 15,3–7). Idee und Planung stehen in [KONZEPT.md](KONZEPT.md).
+Ein meditatives Entdeckungsspiel durch das Neue Testament. Ein pulsierender Lichtorganismus gleitet
+durch einen dunklen Strom aus Licht. Jeder leuchtende Knoten ist eine biblische Geschichte. Wer eine
+Begegnung erlebt, kehrt in die Welt zurück und sieht, wie aus **echten Querverweisen** neue Lichtfäden
+wachsen – bis hinein ins Alte Testament, den „Quellgrund“.
 
-## Starten
-
-Du brauchst Node.js 22.
-
-```bash
+```
 npm install
-npm run dev        # Entwicklungsserver, auch im WLAN erreichbar (Adresse steht in der Konsole)
-npm test           # Tests, inklusive Prüfung, ob das Level durchspielbar ist
-npm run build      # Typprüfung und fertige Web-App in dist/
-npm run preview    # die gebaute Version ansehen
+npm run dev        # lädt beim ersten Start die Quelldaten und baut public/data/
 ```
 
-Zum Testen auf dem Handy startest du `npm run dev`, öffnest die angezeigte „Network“-Adresse im Handy-Browser (gleiches WLAN) und drehst das Handy quer.
+Danach `http://localhost:5173` öffnen. Für eine Produktionsfassung: `npm run build && npm run preview`.
 
-## Steuerung
+## Spielen
 
-| | Touch | Tastatur |
+| | Desktop | Smartphone |
 |---|---|---|
-| Laufen | ◀ ▶ unten links | ← → oder A D |
-| Springen (halten = höher) | ▲ unten rechts | Leertaste, ↑ oder W |
-| Pause | ❚❚ oben rechts | Esc oder P |
+| Gleiten | Maus zeigt die Richtung, WASD oder Pfeiltasten, Umschalt = schneller | irgendwo auf den Bildschirm legen und ziehen (weicher Joystick) |
+| Knoten ansehen | Klick (erster Klick zeigt Titel und schwebt hin) | Tippen |
+| Eintreten / Folgen | zweiter Klick oder Enter | zweites Tippen oder Knopf auf der Karte |
+| Zoom | Mausrad, + / − | zwei Finger |
+| Übersicht, Karte | J, M | Symbole oben rechts |
+| Schließen, Begegnung verlassen | Esc | Symbol oben rechts |
 
-## Aufbau
+Hoch- und Querformat werden unterstützt. In den Einstellungen lassen sich Ton, Lautstärke,
+reduzierte Animationen, eine reduzierte Ansicht und die Mindeststimmen der Querverweise einstellen;
+dort lässt sich der Spielstand auch zurücksetzen. Der Spielstand liegt nur im Browser (`localStorage`).
+
+### Die drei Begegnungen
+
+| Begegnung | Text | Mechanik |
+|---|---|---|
+| Jesus stillt den Sturm | Markus 4,35–41 | Dem Boot folgen, im Sturm zum Licht im Heck durchdringen; nach dem Wort „Schweig und verstumme!“ wird die Steuerung kurz still, die Welle der Ruhe breitet sich aus. |
+| Der verlorene Sohn | Lukas 15,11–32 | Eine Strömung trägt fort; erst die Umkehr dreht sie. Der Vater läuft entgegen, bevor man ankommt. Danach der ältere Bruder – das Gleichnis bleibt offen, wie bei Lukas. |
+| Die Emmausjünger | Lukas 24,13–35 | Auf einem Weg mit einem Unbekannten gehen; „Mose und alle Propheten“ erscheinen als echte Querverweise aus dem Datensatz; Erkennen beim Brotbrechen, dann Rückweg nach Jerusalem. |
+
+Jede Begegnung hat vier Phasen: **Erleben → Verstehen → Verbinden → Zurückkehren**. Am Ende stehen der
+Schlüsselvers, der ganze Text, eine offene Frage zum Nachdenken (ohne Bewertung, Antwort nur lokal
+gespeichert) und die neu entstandenen Verbindungen.
+
+## Verbindungen: drei klar getrennte Ebenen
+
+1. **Im Datensatz** – Querverweise aus OpenBible.info mit ihren Stimmen. Nur diese werden als
+   Datensatztreffer bezeichnet. Standardfilter: ab 4 Stimmen (einstellbar bis „alle“, auch negative).
+2. **Automatischer Hinweis** – gemeinsame Wörter beider Stellen in der Lutherbibel 1912. Rein
+   maschinell, als solcher gekennzeichnet.
+3. **Redaktionelle Erklärung** – 17 kurze Auslegungen (`src/content/editorial.ts`). Jede gehört zu
+   einem Link, der im Datensatz mit der angegebenen Stimmenzahl existiert, und jedes Zitat stimmt
+   wortgenau mit der Lutherbibel 1912 überein. Beides prüfen die Tests.
+
+Die acht **Themen** (Gnade, Glaube, Liebe, Identität, Umkehr, Gebet, Hoffnung, Geist) sind
+redaktionelle Wegweiser und vom Datensatz getrennt. Ein gewähltes Thema leuchtet als Konstellation.
+
+Grundsätze: Bibeltext, Nacherzählung und Auslegung sind sichtbar unterschieden; der volle Text ist
+jederzeit lesbar; es gibt keine richtigen oder falschen Antworten, keine Punkte für Glauben und keine
+Aussagen über den Glauben der Spielenden. Erklärungen sind nachprüfbar, aber nicht unfehlbar.
+
+## Quellen und Lizenzen
+
+| Quelle | Lizenz | Verwendung |
+|---|---|---|
+| [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/), Stand 2026-09-21, 344.799 Verweise; dieselbe Datei wie in [trekhleb/bible-cross-references](https://github.com/trekhleb/bible-cross-references) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | alle Querverweise. Bearbeitet: pro Buch aufgeteilt, 3 Joh 1,15 → 1,14 (KJV-Zählung). Namensnennung im Spiel unter „Quellen“ und an jeder Verbindung. |
+| [Lutherbibel 1912](https://ebible.org/Scriptures/details.php?id=deu1912), Ausgabe eBible.org | gemeinfrei | gesamter Bibeltext. Bearbeitet: auf KJV-Verszählung gebracht (deutsche Zählung bleibt als Zusatzangabe sichtbar), Textfehler in Ri 11,25 entfernt. |
+| Albert Sans, Cormorant Garamond, Source Serif 4 (Fontsource) | SIL OFL 1.1 | Schriften |
+| PixiJS, React | MIT | Bibliotheken |
+
+Warum Luther 1912: Spätere Luther-Revisionen (1984, 2017), Einheitsübersetzung, Elberfelder usw. sind
+urheberrechtlich geschützt. Die Lutherbibel 1912 ist gemeinfrei und bleibt nah an dem Wortlaut, den
+viele kennen. Ihre Rechtschreibung („daß“, „Mußte“) wird nicht modernisiert.
+
+Die Quelldateien sind per SHA-256 in `data/sources.json` festgelegt. Die OpenBible-Datei liegt im
+Repository (`data/raw/`), die Lutherbibel wird beim ersten Datenlauf geladen und geprüft.
+
+## Datenpipeline
+
+`npm run data` (`scripts/data/build.mjs`) erzeugt `public/data/`:
+
+- `versification.json` – KJV-Verszählung, 31.102 Verse, globaler Versindex
+- `text/lut1912/<BUCH>.json` – Bibeltext pro Buch, mit deutscher Zählung wo sie abweicht
+- `xref/<BUCH>.json` – alle Verweise pro Ausgangsbuch, nach Stimmen sortiert, als kompakte Arrays
+- `graph.json` – deterministisches Layout aller 1.189 Kapitel (NT im Kern, AT als äußerer Ring)
+- `meta.json` – Zählungen, Umschlüsselungen, Quellen und Namensnennungen
+
+Alle 344.799 Verweise werden importiert; gefiltert wird erst im Spiel. `--if-needed` überspringt den
+Lauf, wenn die Ausgabe zur aktuellen Version passt (so laufen `dev` und `build` ohne Zusatzschritt).
+
+## Architektur
+
+TypeScript, Vite, PixiJS 8 (WebGL), React 19 für die Oberfläche, Web Audio, `localStorage`.
 
 ```
 src/
-  main.ts              Start, Phaser-Einstellungen, Bildgröße
-  game/GameScene.ts    das Level: Physik, Schaf, Gatter, Rastplätze, Fest
-  game/physics.ts      Sprunghöhen und Tempo (normal 3 Kacheln, mit Schaf 2)
-  game/input.ts        Tastatur und Touch in einem Zustand
-  levels/level.ts      ASCII-Karten einlesen (Legende in der Datei)
-  levels/level1.ts     die Karte von Level 1
-  levels/solver.ts     prüft in den Tests, ob das Level ohne Sackgassen schaffbar ist
-  data/verses.ts       Bibeltexte (Lutherbibel 1912), Hintergrund, Fragen
-  gfx/sprites.ts       Pixelgrafik als Text, ein Zeichen pro Pixel
-  gfx/textures.ts      erzeugt daraus und aus Code alle Texturen (keine Bilddateien)
-  audio/sound.ts       Chiptune-Musik und Effekte per Web Audio (keine Audiodateien)
-  ui/ui.ts             HTML-Oberfläche: Titel, Vers-Puzzle, Versbuch, Touch-Knöpfe
-  save.ts              Fortschritt und Notizen im Browser (localStorage)
-public/                Manifest, Service Worker (offline), App-Icons
-scripts/make-icons.mjs erzeugt die App-Icons (npm run icons)
-tests/                 Tests für Level und Verse
+  bible/        Bible Data Service: Verszählung, Stellen parsen/formatieren, Text laden
+  xref/         Cross-Reference Engine: Verweise, Gruppierung nach Kapiteln, Worthinweise
+  content/      Redaktionelles: Begegnungen, Themen, Erklärungen (vom Datensatz getrennt)
+  engine/       Game Engine: Pixi-App, Kamera, Eingabe, Organismus, Partikel, Rauschen, Texturen
+  world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung)
+  encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
+  audio/        Audio Engine: Klangflächen je Stimmung, wächst mit der Welt
+  state/        Speicher (save.ts) und UI-Zustand (store.ts)
+  ui/           React-Oberfläche: HUD, Fokuskarte, Leser, Verbindungen, Übersicht, Einstellungen
+  director.ts   verbindet alles: Laden, Szenenwechsel, Entdecken, Panels
 ```
 
-### Ein Level bauen
+Neue Begegnungen: einen Eintrag in `src/content/encounters.ts` anlegen und ein Modul in
+`src/encounters/` schreiben, das `EncounterScene` erweitert (`start`, `step`, `objective`). Verse
+erscheinen über `say(von, bis)`, sie werden in Ruhe nacheinander gezeigt.
 
-Level sind ASCII-Karten, ein Zeichen ist eine 16×16-Kachel. Die Legende steht in `src/levels/level.ts`. Die Tests in `tests/level1.test.ts` simulieren die Spielphysik und prüfen:
+## Tests
 
-- Das Schaf ist vom Start aus erreichbar, ohne dass man irgendwo stecken bleibt.
-- Mit dem Schaf kommt man nach Hause, aber nicht über die Hochebene.
-- Alle Versfragmente sind einsammelbar.
+```
+npm test           # Unit-Tests (Vitest): Daten, Bibel-Service, Querverweise, Weltmodell, Redaktion
+npm run test:e2e   # Browser-Tests (Playwright, Chromium) gegen den Build: npm run build vorher
+```
 
-### Test-Abkürzungen
+Die Browser-Tests spielen alle drei Begegnungen vollständig mit der Maus durch, prüfen Bewegung per
+Tastatur, Maus und Touch, Suche, Themen, Einstellungen, Speichern und Zurücksetzen, die
+Kennzeichnung der drei Verbindungsebenen und das Verhalten auf einem Smartphone-Viewport. In der
+CI läuft WebGL in Software, daher die großzügigen Zeitlimits.
 
-Diese Adressen helfen beim Ausprobieren einzelner Stellen:
+Bildrate: Das Spiel misst sie laufend (`window.wortstrom.state().fps`), senkt auf Touch-Geräten die
+Partikelzahl und bietet die reduzierte Ansicht an. Ziel sind 60 fps am Desktop und 30 fps mobil; auf
+echten Geräten ist das noch zu bestätigen, die Testumgebung rendert ohne GPU.
 
-- `?dev&play`: springt direkt ins Spiel
-- `?dev&play&at=140,20`: startet an Kachel x=140, y=20
-- `?dev&play&at=19,21&carry`: startet mit dem Schaf auf den Schultern (kurz vor dem Gatter)
-- `&bodies`: zeigt die Hitboxen
+## Ausbaustufen
 
-## Veröffentlichen
-
-`.github/workflows/pages.yml` baut die App bei jedem Push auf `main` und veröffentlicht sie auf GitHub Pages. Dafür einmalig in den Repository-Einstellungen unter *Settings → Pages → Source* „GitHub Actions“ wählen. Auf dem Handy lässt sich die Seite dann über „Zum Startbildschirm hinzufügen“ wie eine App installieren und läuft auch offline.
-
-## Bibeltext
-
-Lutherbibel 1912, gemeinfrei, aus der Ausgabe von [eBible.org](https://ebible.org/find/details.php?id=deu1912).
+- weitere Begegnungen (z. B. Bartimäus, Samariterin am Brunnen, Pfingsten)
+- Lesepfade durch ganze Bücher; Vergleich der Evangelien nebeneinander
+- weitere gemeinfreie oder lizenzierte Übersetzungen, umschaltbar
+- Barrierefreiheit: Bildschirmleser-Modus für die Welt, frei belegbare Tasten
+- Installierbar als PWA mit Offline-Daten
