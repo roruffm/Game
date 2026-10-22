@@ -69,21 +69,37 @@ export function loadSave(): { data: SaveData; existed: boolean } {
 }
 
 let timer: number | undefined;
+let pending: SaveData | null = null;
+
+function flush() {
+  window.clearTimeout(timer);
+  if (!pending) return;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(pending));
+  } catch {
+    // private mode or full storage: the world lasts for this visit
+  }
+  pending = null;
+}
 
 export function persist(data: SaveData, immediate = false) {
-  const write = () => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(data));
-    } catch {
-      // private mode or full storage: the world lasts for this visit
-    }
-  };
+  pending = data;
   window.clearTimeout(timer);
-  if (immediate) write();
-  else timer = window.setTimeout(write, 400);
+  if (immediate) flush();
+  else timer = window.setTimeout(flush, 400);
+}
+
+// closing the tab or reloading right after a discovery must not lose it
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
 }
 
 export function clearSave() {
+  window.clearTimeout(timer);
+  pending = null;
   try {
     localStorage.removeItem(KEY);
   } catch {

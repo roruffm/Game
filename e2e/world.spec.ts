@@ -77,7 +77,7 @@ test('the world is kept after a reload and can be reset', async ({ page }) => {
   await page.locator('#search-ref').fill('Lk 15,20');
   await page.getByRole('button', { name: /Lesen und aufleuchten lassen/ }).click();
   await expect.poll(async () => (await state(page)).stats.discovered).toBe(1);
-  await page.waitForTimeout(600);
+  // reload at once: the save must be written when the page goes away, not only after its delay
   await page.reload();
   await expect(page.locator('#start')).toHaveText('Weiter erkunden');
   await expect(page.locator('.start')).toContainText('1 Entdeckungen');

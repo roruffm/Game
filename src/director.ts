@@ -202,7 +202,11 @@ export class Director {
   }
 
   async discover(d: Discovery) {
-    const res = await this.model.discover(d);
+    // the model records the discovery in the save at once and then loads its links;
+    // save right away so leaving the page during that load keeps it
+    const pending = this.model.discover(d);
+    persist(this.save);
+    const res = await pending;
     if (!res.isNew) return;
     persist(this.save);
     this.world.flare(d.chapter);
