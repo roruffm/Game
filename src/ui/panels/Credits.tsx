@@ -1,5 +1,6 @@
 // Sources, licences and what the data means.
 
+import { TRACKS } from '../../audio/tracks';
 import { director } from '../../director';
 import { Sheet } from '../common';
 
@@ -56,6 +57,28 @@ export function Credits({ onClose }: { onClose: () => void }) {
         </li>
       </ul>
       <p>Die Themen-Konstellationen sind ebenfalls redaktionell und werden getrennt von den Querverweis-Daten gepflegt.</p>
+      <h3>Musik</h3>
+      <p>
+        Instrumentale Lobpreis-Stücke für Klavier von{' '}
+        <a href="https://pixabay.com/music/" target="_blank" rel="noreferrer">
+          Pixabay
+        </a>
+        , verwendet unter der{' '}
+        <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noreferrer">
+          Pixabay-Inhaltslizenz
+        </a>
+        . Für das Spiel gekürzt, ein- und ausgeblendet und in der Lautstärke angeglichen.
+      </p>
+      <ul className="plain">
+        {TRACKS.map((t) => (
+          <li key={t.id}>
+            <a href={t.url} target="_blank" rel="noreferrer">
+              {t.title}
+            </a>{' '}
+            – {t.artist}
+          </li>
+        ))}
+      </ul>
       <h3>Software und Schriften</h3>
       <p className="fine">
         PixiJS und React (MIT-Lizenz). Schriften: Cormorant Garamond, Source Serif 4 und Albert Sans (SIL Open Font License), über Fontsource.
