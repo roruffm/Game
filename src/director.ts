@@ -1,7 +1,7 @@
 // Ties the systems together: loads data, runs the world and the encounters, turns discoveries
 // into a changing world, and answers the interface.
 
-import { audio } from './audio/audio';
+import { audio, renderPreview } from './audio/audio';
 import { Bible, type Range, type Versification } from './bible/bible';
 import { BOOKS, GROUPS } from './bible/books';
 import { encounterById, ENCOUNTERS, type EncounterId } from './content/encounters';
@@ -415,6 +415,7 @@ export class Director {
     });
     this.encounter = { id, scene };
     store.set({ phase: 'encounter', focus: null });
+    audio.setScene(id);
     audio.chime('enter');
     this.game.setScene(scene, true);
     this.game.input.enabled = true;
@@ -447,6 +448,7 @@ export class Director {
     this.game.setScene(this.world);
     this.setPanel(null);
     store.set({ phase: 'world', encounter: null, confirmLeave: false });
+    audio.setScene('world');
     audio.setMood('world', 4);
     audio.setStorm(0, 2);
     audio.setRichness(this.model.richness());
@@ -509,9 +511,11 @@ export class Director {
         ride: this.world.rideState(),
         reveal: store.get().reveal,
         stats: this.model.stats(),
+        music: audio.state(),
         fps: this.game.frameRate,
       }),
       toScreen: (x: number, y: number) => this.game.camera.toScreen(x, y),
+      renderPreview,
     };
   }
 }

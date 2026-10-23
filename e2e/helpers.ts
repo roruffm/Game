@@ -9,6 +9,7 @@ export interface GameState {
   threads: { a: number; b: number; kind: string; votes: number; links: number }[];
   stats: { discovered: number; threads: number; connections: number; encounters: number; ot: number };
   ride: { from: number; to: number; s: number; length: number; words: number; caught: number } | null;
+  music: { scene: string; mood: string; track: string | null; playing: boolean; players: number };
   reveal: { label: string; words: { text: string; caught: boolean }[] } | null;
   fps: number;
 }

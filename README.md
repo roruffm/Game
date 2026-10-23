@@ -60,6 +60,16 @@ Hoch- und Querformat werden unterstützt. In den Einstellungen lassen sich Ton, 
 reduzierte Animationen, eine reduzierte Ansicht und die Mindeststimmen der Querverweise einstellen;
 dort lässt sich der Spielstand auch zurücksetzen. Der Spielstand liegt nur im Browser (`localStorage`).
 
+### Musik
+
+Ruhige instrumentale Lobpreis-Stücke für Klavier begleiten die Welt und jede Begegnung: in der
+Welt zwei lange Stücke im Wechsel, in der Sturmstillung „Morning Worship“, beim verlorenen Sohn
+eine Improvisation über „Lasst uns erfreuen“, auf dem Weg nach Emmaus ein ruhiger Loop. Beim
+Wechsel blenden sie ineinander über. Stimmungen färben die Musik: im Sturm leise und gedämpft
+unter Wind und Wellen, in der Fremde wie aus der Ferne. Die Klänge des Spiels (ein Vers erscheint,
+ein Wort wird gefangen, eine Entdeckung) sind leise Klaviertöne in der Tonart des Stücks, das gerade
+läuft, und liegen deutlich unter der Musik.
+
 ### Die drei Begegnungen
 
 | Begegnung | Text | Mechanik |
@@ -95,6 +105,7 @@ Aussagen über den Glauben der Spielenden. Erklärungen sind nachprüfbar, aber 
 |---|---|---|
 | [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/), Stand 2026-09-21, 344.799 Verweise; dieselbe Datei wie in [trekhleb/bible-cross-references](https://github.com/trekhleb/bible-cross-references) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | alle Querverweise. Bearbeitet: pro Buch aufgeteilt, 3 Joh 1,15 → 1,14 (KJV-Zählung). Namensnennung im Spiel unter „Quellen“ und an jeder Verbindung. |
 | [Lutherbibel 1912](https://ebible.org/Scriptures/details.php?id=deu1912), Ausgabe eBible.org | gemeinfrei | gesamter Bibeltext. Bearbeitet: auf KJV-Verszählung gebracht (deutsche Zählung bleibt als Zusatzangabe sichtbar), Textfehler in Ri 11,25 entfernt. |
+| Musik von [Pixabay](https://pixabay.com/music/): „Peaceful Worship Piano Prayer Music“ und „Beautiful Worship Piano Peaceful Music“ (Denis Pavlov), „Morning Worship“ (Adrian Huminiak), „All Creatures of Our God and King – Piano Improvisation“ (smccleery), „Peaceful Piano Soaking Instrumental Worship Track (Loops)“ (Jesse Quinn) | [Pixabay-Inhaltslizenz](https://pixabay.com/service/license-summary/) | Musik der Welt und der Begegnungen, gekürzt, ein- und ausgeblendet, auf −18 LUFS angeglichen, als MP3 mit 112 kbit/s (`public/music/`). Links zu den Stücken stehen in `src/audio/tracks.ts` und im Spiel unter „Quellen“. |
 | Albert Sans, Cormorant Garamond, Source Serif 4 (Fontsource) | SIL OFL 1.1 | Schriften |
 | PixiJS, React | MIT | Bibliotheken |
 
@@ -132,7 +143,8 @@ src/
                 ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung),
                 resonanceView.ts (die Resonanz-Welle)
   encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
-  audio/        Audio Engine: Klangflächen je Stimmung, wächst mit der Welt
+  audio/        Audio Engine: Musikstücke je Situation mit Überblendung, Stimmungen färben sie (tracks.ts);
+                Ereignisklänge als leise Klaviertöne in der Tonart des laufenden Stücks; Wind im Sturm
   state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse (reading.ts)
   ui/           React-Oberfläche: HUD, Fokuskarte, Verse als Gedanken (Thought.tsx), Leser, Verbindungen,
                 Übersicht, Einstellungen

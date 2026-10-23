@@ -1,38 +1,48 @@
-// Audio Engine: slow, breathing pads (more voices as the world grows), a wind-and-water
-// layer for the storm, and soft bell tones for discoveries. All synthesised with the Web Audio
-// API; nothing plays before the player's first tap or click.
+// Audio Engine: real music, played quietly. Calm instrumental worship pieces for piano (see
+// tracks.ts) accompany the world and each encounter and cross-fade when the scene changes; the
+// moods of an encounter only colour them. The game's small sounds are soft piano notes in the key
+// of the piece that is playing, so they join the music rather than sound over it. A wind-and-water
+// layer belongs to the storm. Nothing plays before the player's first tap or click.
 
-export type Mood = 'world' | 'storm' | 'calm' | 'far' | 'home' | 'path' | 'reveal';
+import { nextTrack, TREATMENT, trackById, type Mood, type Scene, type Track } from './tracks';
 
-const CHORDS: Record<Mood, number[]> = {
-  // D with a raised fourth: open, floating
-  world: [73.42, 110, 146.83, 185, 220, 277.18, 329.63, 440],
-  storm: [65.41, 98, 116.54, 155.56, 196, 233.08],
-  calm: [146.83, 220, 293.66, 369.99, 440, 554.37],
-  far: [110, 130.81, 164.81, 246.94, 329.63],
-  home: [87.31, 130.81, 174.61, 220, 261.63, 329.63, 392],
-  path: [82.41, 123.47, 164.81, 196, 246.94],
-  reveal: [146.83, 220, 293.66, 369.99, 440, 554.37, 659.25],
-};
-const BRIGHTNESS: Record<Mood, number> = { world: 1100, storm: 520, calm: 2600, far: 600, home: 2100, path: 950, reveal: 3200 };
-const BELLS = [587.33, 659.25, 739.99, 880, 987.77, 1174.66, 1318.51];
+export type { Mood, Scene } from './tracks';
+export type ChimeKind = 'near' | 'discover' | 'thread' | 'enter' | 'beat' | 'reveal';
 
-interface Voice {
-  oscA: OscillatorNode;
-  oscB: OscillatorNode;
+const MUSIC_DIR = `${import.meta.env.BASE_URL}music/`;
+/** Seconds over which one piece fades into the next. */
+const CROSSFADE = 3.5;
+/** The music sits below the game; the volume setting scales everything. */
+const MUSIC_LEVEL = 0.55;
+/** Used when nothing plays yet: G major pentatonic. */
+const DEFAULT_SCALE = [67, 69, 71, 74, 76];
+
+const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+interface Deck {
+  el: HTMLAudioElement;
   gain: GainNode;
+  track: Track | null;
 }
 
-class AudioEngine {
-  private ctx: AudioContext | null = null;
+export class AudioEngine {
+  private ctx: BaseAudioContext | null = null;
   private master!: GainNode;
-  private music!: GainNode;
-  private filter!: BiquadFilterNode;
-  private fx!: GainNode;
-  private voices: Voice[] = [];
+  /** Where the music enters: the mood's loudness, then its tone. */
+  musicIn!: GainNode;
+  private tone!: BiquadFilterNode;
+  private notes!: GainNode;
+  private piano!: PeriodicWave;
   private storm!: { gain: GainNode; band: BiquadFilterNode };
+  private decks: Deck[] = [];
+  private active = 0;
+  private scene: Scene = 'world';
   private mood: Mood = 'world';
+  /** The piece of the world that played last, so the world continues with the other one. */
+  private lastWorld: string | null = null;
   private richness = 0;
+  /** The piece whose key the small sounds follow. */
+  current: Track | null = null;
   enabled = true;
   volume = 0.7;
 
@@ -41,62 +51,67 @@ class AudioEngine {
     if (!this.ctx) {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctx) return;
-      this.ctx = new Ctx();
-      this.build(this.ctx);
+      this.attach(new Ctx());
+      window.setInterval(() => this.watch(), 400);
+      document.addEventListener('visibilitychange', () => this.onVisibility());
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    const ctx = this.ctx as AudioContext;
+    if (ctx.state === 'suspended') void ctx.resume();
+    if (!this.enabled) return;
+    // the music files load only once sound is on
+    if (!this.decks.length) this.createDecks(ctx);
+    this.ensureMusic();
   }
 
-  private build(ctx: AudioContext) {
+  /** Two players, so one piece can fade into the next. Called inside a tap or click. */
+  private createDecks(ctx: AudioContext) {
+    const first = nextTrack(this.scene, this.scene === 'world' ? this.lastWorld : null);
+    for (let i = 0; i < 2; i++) {
+      const el = new Audio();
+      el.preload = 'auto';
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      ctx.createMediaElementSource(el).connect(gain).connect(this.musicIn);
+      const deck: Deck = { el, gain, track: null };
+      this.decks.push(deck);
+      // where a direct link to the file is refused, load it as data instead
+      el.addEventListener('error', () => void this.reload(deck));
+      // some browsers let an element play only if it first started inside a tap or click
+      el.src = MUSIC_DIR + first.file;
+      void el
+        .play()
+        .then(() => {
+          if (!deck.track) el.pause();
+        })
+        .catch(() => undefined);
+    }
+  }
+
+  /** Builds the sound graph on a context (an OfflineAudioContext works too, for listening tests). */
+  attach(ctx: BaseAudioContext) {
+    this.ctx = ctx;
     this.master = ctx.createGain();
     this.master.gain.value = this.enabled ? this.volume : 0;
     this.master.connect(ctx.destination);
 
-    // a feedback delay gives every sound some space
-    const delay = ctx.createDelay(1);
-    delay.delayTime.value = 0.34;
-    const fb = ctx.createGain();
-    fb.gain.value = 0.38;
-    const damp = ctx.createBiquadFilter();
-    damp.type = 'lowpass';
-    damp.frequency.value = 2400;
-    this.fx = ctx.createGain();
-    this.fx.gain.value = 0.35;
-    this.fx.connect(delay);
-    delay.connect(damp).connect(fb).connect(delay);
-    damp.connect(this.master);
+    this.tone = ctx.createBiquadFilter();
+    this.tone.type = 'lowpass';
+    this.tone.Q.value = 0.3;
+    this.tone.frequency.value = TREATMENT.world.cutoff;
+    this.musicIn = ctx.createGain();
+    this.musicIn.gain.value = MUSIC_LEVEL * TREATMENT.world.gain;
+    this.musicIn.connect(this.tone).connect(this.master);
 
-    this.filter = ctx.createBiquadFilter();
-    this.filter.type = 'lowpass';
-    this.filter.frequency.value = BRIGHTNESS.world;
-    this.filter.Q.value = 0.4;
-    this.music = ctx.createGain();
-    this.music.gain.value = 0.9;
-    this.filter.connect(this.music).connect(this.master);
-    this.music.connect(this.fx);
-
-    for (let i = 0; i < 8; i++) {
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      const oscA = ctx.createOscillator();
-      const oscB = ctx.createOscillator();
-      oscA.type = 'sine';
-      oscB.type = 'triangle';
-      oscB.detune.value = 6 + i;
-      oscA.connect(gain);
-      oscB.connect(gain);
-      gain.connect(this.filter);
-      // each voice breathes at its own slow pace
-      const lfo = ctx.createOscillator();
-      const depth = ctx.createGain();
-      lfo.frequency.value = 0.03 + i * 0.011;
-      depth.gain.value = 0.012;
-      lfo.connect(depth).connect(gain.gain);
-      oscA.start();
-      oscB.start();
-      lfo.start();
-      this.voices.push({ oscA, oscB, gain });
-    }
+    // the small sounds get a little room, so they blend with the recording
+    const room = ctx.createConvolver();
+    room.buffer = this.room(ctx, 2);
+    const wet = ctx.createGain();
+    wet.gain.value = 0.35;
+    room.connect(wet).connect(this.master);
+    this.notes = ctx.createGain();
+    this.notes.connect(this.master);
+    this.notes.connect(room);
+    this.piano = ctx.createPeriodicWave(new Float32Array(7), new Float32Array([0, 1, 0.45, 0.2, 0.09, 0.04, 0.02]));
 
     // wind and water: looping noise through a moving band-pass filter
     const len = ctx.sampleRate * 2;
@@ -125,13 +140,32 @@ class AudioEngine {
     src.start();
     lfo.start();
     this.storm = { gain, band };
-    this.applyMood(0.1);
+  }
+
+  /** A short stereo impulse response: soft reflections that fade within a moment. */
+  private room(ctx: BaseAudioContext, seconds: number) {
+    const len = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      let lp = 0;
+      for (let i = 0; i < len; i++) {
+        const k = i / len;
+        lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.42 * k);
+        d[i] = lp * Math.pow(1 - k, 3);
+      }
+    }
+    return buf;
   }
 
   setEnabled(on: boolean) {
     this.enabled = on;
     if (on) this.unlock();
-    if (this.ctx) this.master.gain.setTargetAtTime(on ? this.volume : 0, this.ctx.currentTime, 0.2);
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(on ? this.volume : 0, this.ctx.currentTime, 0.2);
+    const deck = this.decks[this.active];
+    if (!on) for (const d of this.decks) d.el.pause();
+    else if (deck?.track) void deck.el.play().catch(() => undefined);
   }
 
   setVolume(v: number) {
@@ -139,14 +173,27 @@ class AudioEngine {
     if (this.ctx && this.enabled) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.1);
   }
 
+  /** 0 at the start, 1 for a world full of light: the small sounds become a little brighter. */
   setRichness(r: number) {
     this.richness = r;
-    if (this.mood === 'world') this.applyMood(3);
   }
 
+  /** Changes the music to the pieces of a situation of the game. */
+  setScene(scene: Scene) {
+    if (scene === this.scene) return;
+    this.scene = scene;
+    if (!this.ctx || !this.enabled || !this.decks.length) return;
+    this.play(nextTrack(scene, scene === 'world' ? this.lastWorld : null));
+  }
+
+  /** Colours the music for a mood (quieter, further away, brighter) over `seconds`. */
   setMood(mood: Mood, seconds = 3) {
     this.mood = mood;
-    this.applyMood(seconds);
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const m = TREATMENT[mood];
+    this.musicIn.gain.setTargetAtTime(MUSIC_LEVEL * m.gain, t, seconds / 3);
+    this.tone.frequency.setTargetAtTime(m.cutoff, t, seconds / 3);
   }
 
   /** 0–1: how loud the storm layer is. */
@@ -157,75 +204,180 @@ class AudioEngine {
     this.storm.band.Q.setTargetAtTime(0.5 + amount, t, seconds / 3);
   }
 
-  private applyMood(seconds: number) {
-    if (!this.ctx) return;
-    const t = this.ctx.currentTime;
-    const chord = CHORDS[this.mood];
-    const active = this.mood === 'world' ? 3 + Math.round(this.richness * 5) : chord.length;
-    this.voices.forEach((v, i) => {
-      const f = chord[i % chord.length] * (i >= chord.length ? 2 : 1);
-      v.oscA.frequency.setTargetAtTime(f, t, seconds / 3);
-      v.oscB.frequency.setTargetAtTime(f * (this.mood === 'storm' ? 1.003 : 2), t, seconds / 3);
-      const level = i < active ? 0.05 / (1 + i * 0.18) : 0;
-      v.gain.gain.setTargetAtTime(level, t, seconds / 2);
-    });
-    const bright = BRIGHTNESS[this.mood] + (this.mood === 'world' ? this.richness * 1800 : 0);
-    this.filter.frequency.setTargetAtTime(bright, t, seconds / 2);
+  /** Starts the music of the current scene if nothing plays. */
+  private ensureMusic() {
+    const deck = this.decks[this.active];
+    if (!deck) return;
+    if (!deck.track) this.play(nextTrack(this.scene, this.scene === 'world' ? this.lastWorld : null), 2.5);
+    else if (deck.el.paused) void deck.el.play().catch(() => undefined);
   }
 
-  /** A soft bell. */
-  chime(kind: 'near' | 'discover' | 'thread' | 'enter' | 'beat' | 'reveal') {
-    if (!this.ctx || !this.enabled) return;
-    const steps: Record<typeof kind, number[]> = {
-      near: [5],
-      beat: [3],
-      thread: [2, 4],
-      discover: [0, 2, 4],
-      enter: [0, 4, 6],
-      reveal: [0, 2, 4, 6, 5],
-    };
-    steps[kind].forEach((n, i) => this.bell(BELLS[n % BELLS.length] * (kind === 'enter' ? 0.5 : 1), i * 0.16, kind === 'near' ? 0.04 : 0.07));
-  }
-
-  /** A deep, open tone that rings out with a resonance. */
-  resonance() {
-    if (!this.ctx || !this.enabled) return;
-    this.bell(BELLS[0] / 2, 0, 0.09);
-    this.bell(BELLS[4] / 2, 0.14, 0.05);
-    this.bell(BELLS[0], 0.3, 0.03);
-  }
-
-  /** A soft note for each word caught on a ride, climbing a little with every one. */
-  pluck(step: number) {
-    if (!this.ctx || !this.enabled) return;
-    const scale = [0, 1, 2, 4, 5];
-    const octave = Math.floor(step / scale.length) % 2;
-    this.bell(BELLS[scale[step % scale.length]] * (octave ? 2 : 1), 0, 0.03);
-  }
-
-  private bell(freq: number, delay: number, level: number) {
-    const ctx = this.ctx!;
-    const t = ctx.currentTime + delay;
-    const out = ctx.createGain();
-    out.gain.setValueAtTime(0.0001, t);
-    out.gain.exponentialRampToValueAtTime(level, t + 0.02);
-    out.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
-    out.connect(this.master);
-    out.connect(this.fx);
-    for (const [mult, amp] of [
-      [1, 1],
-      [2.76, 0.25],
-      [5.4, 0.08],
-    ]) {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = freq * mult;
-      g.gain.value = amp;
-      o.connect(g).connect(out);
-      o.start(t);
-      o.stop(t + 2.5);
+  /** Fades from the piece that plays to `track` on the other deck. */
+  private play(track: Track, fade = CROSSFADE) {
+    const ctx = this.ctx as AudioContext;
+    const t = ctx.currentTime;
+    const from = this.decks[this.active];
+    // the very first piece starts on the player that is already prepared
+    if (from.track) this.active = 1 - this.active;
+    const to = this.decks[this.active];
+    to.track = track;
+    if (!to.el.src.endsWith(MUSIC_DIR.replace(/^\./, '') + track.file) || to.el.ended) to.el.src = MUSIC_DIR + track.file;
+    to.el.currentTime = 0;
+    to.gain.gain.cancelScheduledValues(t);
+    to.gain.gain.setValueAtTime(0, t);
+    to.gain.gain.linearRampToValueAtTime(1, t + fade);
+    void to.el.play().catch(() => undefined);
+    this.current = track;
+    if (track.id.startsWith('welt')) this.lastWorld = track.id;
+    if (from.track && from !== to) {
+      from.gain.gain.cancelScheduledValues(t);
+      from.gain.gain.setValueAtTime(from.gain.gain.value, t);
+      from.gain.gain.linearRampToValueAtTime(0, t + fade);
+      const el = from.el;
+      from.track = null;
+      window.setTimeout(() => {
+        if (!this.decks.some((d) => d.el === el && d.track)) el.pause();
+      }, fade * 1000 + 300);
     }
+  }
+
+  private reloaded = new Set<string>();
+
+  private async reload(deck: Deck) {
+    const track = deck.track;
+    if (!track || this.reloaded.has(track.id)) return;
+    this.reloaded.add(track.id);
+    try {
+      const blob = await (await fetch(MUSIC_DIR + track.file)).blob();
+      if (deck.track !== track) return;
+      deck.el.src = URL.createObjectURL(blob);
+      await deck.el.play();
+    } catch {
+      // without music the game goes on quietly
+    }
+  }
+
+  /** Before a piece ends, the next one (or the same again) fades in, so the music never stops. */
+  private watch() {
+    const deck = this.decks[this.active];
+    if (!deck?.track || !this.enabled || deck.el.paused) return;
+    const { duration, currentTime } = deck.el;
+    const fade = deck.track.loop ? 1.2 : CROSSFADE;
+    if (Number.isFinite(duration) && duration - currentTime < fade + 0.4) this.play(nextTrack(this.scene, deck.track.id), fade);
+  }
+
+  /** A hidden page is silent; the music goes on where it was when the page returns. */
+  private onVisibility() {
+    const ctx = this.ctx as AudioContext | null;
+    if (!ctx) return;
+    const deck = this.decks[this.active];
+    if (document.hidden) {
+      for (const d of this.decks) d.el.pause();
+      void ctx.suspend();
+    } else if (this.enabled) {
+      void ctx.resume();
+      if (deck?.track) void deck.el.play().catch(() => undefined);
+    }
+  }
+
+  /** One soft piano note: a gentle attack and a filter that closes as it fades. */
+  private note(midi: number, t: number, level: number, decay: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const f = mtof(midi);
+    const bright = 2400 + this.richness * 1200;
+    const osc = ctx.createOscillator();
+    osc.setPeriodicWave(this.piano);
+    osc.frequency.value = f;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.2;
+    lp.frequency.setValueAtTime(Math.min(bright, f * 6), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(220, Math.min(bright, f * 2)), t + decay * 0.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(level, t + 0.01);
+    g.gain.setTargetAtTime(0, t + 0.01, decay / 4);
+    osc.connect(lp).connect(g).connect(this.notes);
+    osc.start(t);
+    osc.stop(t + decay * 1.6);
+  }
+
+  /** The game's small sounds, at time `t` (now, if not given), in the key of the music. */
+  chime(kind: ChimeKind, t?: number) {
+    if (!this.ctx || !this.enabled) return;
+    const at = t ?? this.ctx.currentTime + 0.02;
+    const s = this.current?.scale ?? DEFAULT_SCALE;
+    const play = (notes: number[], gap: number, level: number, decay = 2.8) => notes.forEach((m, i) => this.note(m, at + i * gap, level, decay));
+    switch (kind) {
+      case 'near':
+        play([s[4]], 0, 0.016, 2);
+        break;
+      case 'beat':
+        play([s[2]], 0, 0.019, 2.6);
+        break;
+      case 'thread':
+        play([s[1], s[3]], 0.15, 0.022);
+        break;
+      case 'discover':
+        play([s[0], s[2], s[4]], 0.13, 0.024, 3);
+        break;
+      case 'enter':
+        play([s[0] - 12, s[2] - 12, s[4] - 12], 0, 0.02, 4);
+        break;
+      case 'reveal':
+        play([...s, s[0] + 12], 0.17, 0.022, 3.2);
+        break;
+    }
+  }
+
+  /** A soft note for each word caught on a ride, climbing the scale with every one. */
+  pluck(step: number, t?: number) {
+    if (!this.ctx || !this.enabled) return;
+    const s = this.current?.scale ?? DEFAULT_SCALE;
+    const octave = Math.floor(step / s.length) % 2;
+    this.note(s[step % s.length] + octave * 12, t ?? this.ctx.currentTime + 0.01, 0.019, 2.2);
+  }
+
+  /** A deep, open chord that rings out with a resonance. */
+  resonance(t?: number) {
+    if (!this.ctx || !this.enabled) return;
+    const at = t ?? this.ctx.currentTime + 0.02;
+    const root = (this.current?.scale ?? DEFAULT_SCALE)[0] - 24;
+    for (const m of [root, root + 7, root + 12]) this.note(m, at, 0.026, 5);
+    this.note(root + 24, at + 0.35, 0.016, 3.5);
+  }
+
+  /** For tests: what plays, and how. */
+  state() {
+    const deck = this.decks[this.active];
+    return { scene: this.scene, mood: this.mood, track: deck?.track?.id ?? null, playing: !!deck && !deck.el.paused && !!deck.track, players: this.decks.length };
   }
 }
 
 export const audio = new AudioEngine();
+
+/**
+ * Renders a stretch of a piece with some of the game's small sounds over it, offline: to listen
+ * to the balance, and to check it in the tests.
+ */
+export async function renderPreview(trackId: string, seconds: number, events: { at: number; kind: ChimeKind | 'pluck' | 'resonance'; step?: number }[], offset = 30) {
+  const track = trackById(trackId);
+  const rate = 44100;
+  const ctx = new OfflineAudioContext(2, Math.ceil(seconds * rate), rate);
+  const data = await (await fetch(MUSIC_DIR + track.file)).arrayBuffer();
+  const buffer = await ctx.decodeAudioData(data);
+  const engine = new AudioEngine();
+  engine.attach(ctx);
+  engine.current = track;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(engine.musicIn);
+  src.start(0, offset);
+  for (const e of events) {
+    if (e.kind === 'pluck') engine.pluck(e.step ?? 0, e.at);
+    else if (e.kind === 'resonance') engine.resonance(e.at);
+    else engine.chime(e.kind, e.at);
+  }
+  return ctx.startRendering();
+}
