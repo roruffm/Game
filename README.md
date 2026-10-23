@@ -102,11 +102,17 @@ läuft, und liegen deutlich unter der Musik.
 
 ### Die drei Begegnungen
 
-| Begegnung | Text | Mechanik |
+Jede Begegnung erzählt ihre Stelle in Szenen, im selben Licht wie der Organismus: keine Bilder und
+keine Umrisse, nur Lichter, Schimmer und weiche Blätter aus Licht. Menschen sind kleine Gestalten
+aus Kopf und Leib, ein Schwein ist ein runder, warmer Lichtkörper mit Rüssel und Ringelschwanz.
+Jede Szene beginnt erst, wenn ihr Vers angezeigt wird, damit Text und Bild zusammengehen. Was der
+Text nicht ausdrücklich sagt, sondern nur ausgemalt ist, sagt der Hinweis am unteren Rand.
+
+| Begegnung | Text | Szenen |
 |---|---|---|
-| Jesus stillt den Sturm | Markus 4,35–41 | Dem Boot folgen, im Sturm zum Licht im Heck durchdringen; nach dem Wort „Schweig und verstumme!“ wird die Steuerung kurz still, die Welle der Ruhe breitet sich aus. |
-| Der verlorene Sohn | Lukas 15,11–32 | Eine Strömung trägt fort; erst die Umkehr dreht sie. Der Vater läuft entgegen, bevor man ankommt. Danach der ältere Bruder – das Gleichnis bleibt offen, wie bei Lukas. |
-| Die Emmausjünger | Lukas 24,13–35 | Auf einem Weg mit einem Unbekannten gehen; „Mose und alle Propheten“ erscheinen als echte Querverweise aus dem Datensatz; Erkennen beim Brotbrechen, dann Rückweg nach Jerusalem. |
+| Jesus stillt den Sturm | Markus 4,35–41 | Abend auf dem See: tiefe Sonne mit einer glitzernden Spur auf dem Wasser, das Volk bleibt am Ufer zurück, andere Boote fahren mit. Der Windwirbel: wirbelnde Windstriche, Gischt, Wellen schlagen ins Boot, bis es voll Wasser steht. Jesus schläft hinten auf einem Kissen; die Jünger drängen sich zu ihm. Er steht auf, „Schweig und verstumme!“: die Steuerung wird kurz still, eine Welle der Ruhe breitet sich aus, der Wind legt sich, die Sterne kommen heraus. Die Jünger zittern: „Wer ist der?“ |
+| Der verlorene Sohn | Lukas 15,11–32 | Der Vater teilt das Gut: goldene Lichter gehen zu beiden Söhnen. Eine Strömung trägt fort in ein fernes Land. „Mit Prassen“ ist als Schenke ausgemalt (so im Hinweis gekennzeichnet): eine Lampenkette, Wein, ein Reigen, der Münze um Münze nimmt; wer trinkt, schwankt. Dann gehen die Lampen aus, Teuerung, das Land wird grau. Auf dem Acker hütet man die Schweineherde und führt sie zu den Trebern; greift man selbst danach, nimmt sie ein Schwein, „und niemand gab sie ihm“. „Da schlug er in sich“: ein Bild vom Haus des Vaters mit Brot in Fülle. Der Vater läuft entgegen, bevor man ankommt, mit einer Spur aus Licht; Kleid, Fingerreif und Schuhe; Lampen, ein langer Tisch und ein Reigen ums Haus. Der ältere Bruder bleibt draußen, der Vater geht zu ihm hinaus. Das Gleichnis bleibt offen, wie bei Lukas. |
+| Die Emmausjünger | Lukas 24,13–35 | Jerusalems Lichter im Rücken. Die zwei reden im Gehen, ein Unbekannter kommt dazu, von einem grauen Schleier umgeben („ihre Augen wurden gehalten“); ihr Licht wird trüb vor Traurigkeit. Was sie erzählen, steigt am Weg als blasses Erinnerungsbild auf: der Prophet vor allem Volk und das Kreuz, die drei Tage, das leere Grab mit dem weggewälzten Stein. „Mose und alle Propheten“ erscheinen als echte Querverweise aus dem Datensatz. Abend in Emmaus, die Fenster leuchten auf; er stellt sich, als wolle er weitergehen, bis man ihn bittet zu bleiben. Am Tisch nimmt er das Brot, dankt, bricht es und gibt es ihnen; sie erkennen ihn, er verschwindet, und ihre Herzen brennen. Bei Nacht zurück nach Jerusalem, wo die Elf versammelt sind. |
 
 Jede Begegnung hat vier Phasen: **Erleben → Verstehen → Verbinden → Zurückkehren**. Am Ende stehen der
 Schlüsselvers, der ganze Text, eine offene Frage zum Nachdenken (ohne Bewertung, Antwort nur lokal
@@ -173,7 +179,8 @@ src/
   world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung),
                 ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung),
                 resonanceView.ts (die Resonanz-Welle)
-  encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
+  encounters/   Encounter Engine (kit.ts), je ein Modul pro Begegnung und die Figuren und Dinge der
+                Geschichten aus Licht (props.ts)
   audio/        Audio Engine: Musikstücke je Situation mit Überblendung, Stimmungen färben sie (tracks.ts);
                 Ereignisklänge als leise Klaviertöne in der Tonart des laufenden Stücks; Wind im Sturm
   state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse und wann sie gelesen
@@ -185,7 +192,9 @@ src/
 
 Neue Begegnungen: einen Eintrag in `src/content/encounters.ts` anlegen und ein Modul in
 `src/encounters/` schreiben, das `EncounterScene` erweitert (`start`, `step`, `objective`). Verse
-erscheinen über `say(von, bis)`, sie werden in Ruhe nacheinander gezeigt.
+erscheinen über `say(von, bis)`, sie werden in Ruhe nacheinander gezeigt. Mit `heard(vers)` und
+`settled` wartet eine Szene, bis ihr Vers zu sehen ist und gelesen werden konnte; `closeUp(k)`
+holt die Kamera für eine Szene näher heran.
 
 ## Tests
 
