@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breakLines, lineStarts, readingHold } from '../src/state/reading';
+import { breakLines, lineStarts, readingHold, ripeAfter } from '../src/state/reading';
 
 describe('verses unfolding like a thought', () => {
   it('lets every line wait until the one before can be read', () => {
@@ -21,6 +21,14 @@ describe('verses unfolding like a thought', () => {
     expect(medium).toBeGreaterThan(6);
     expect(medium).toBeLessThan(10);
     expect(readingHold('x'.repeat(2000))).toBe(14);
+  });
+
+  it('lets a verse become food only once its last line could be read', () => {
+    const lines = ['Und an demselben Tage des Abends', 'sprach er zu ihnen: Laßt uns', 'hinüberfahren.'];
+    const starts = lineStarts(lines);
+    expect(ripeAfter(lines)).toBeGreaterThan(starts[2] + 2);
+    expect(ripeAfter([...lines, 'und noch eine Zeile'])).toBeGreaterThan(ripeAfter(lines));
+    expect(ripeAfter([])).toBe(0);
   });
 
   it('breaks words into lines that fit', () => {

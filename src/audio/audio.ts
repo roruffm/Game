@@ -7,7 +7,7 @@
 import { nextTrack, TREATMENT, trackById, type Mood, type Scene, type Track } from './tracks';
 
 export type { Mood, Scene } from './tracks';
-export type ChimeKind = 'near' | 'discover' | 'thread' | 'enter' | 'beat' | 'reveal';
+export type ChimeKind = 'near' | 'discover' | 'thread' | 'enter' | 'beat' | 'reveal' | 'grow';
 
 const MUSIC_DIR = `${import.meta.env.BASE_URL}music/`;
 /** Seconds over which one piece fades into the next. */
@@ -328,7 +328,24 @@ export class AudioEngine {
       case 'reveal':
         play([...s, s[0] + 12], 0.17, 0.022, 3.2);
         break;
+      case 'grow':
+        play([s[0] - 12, s[2], s[4], s[1] + 12], 0.22, 0.021, 4);
+        break;
     }
+  }
+
+  private lastTaste = 0;
+
+  /** A word taken in: a short, very soft note, wandering through the scale as more follow. */
+  taste(step: number, t?: number) {
+    if (!this.ctx || !this.enabled) return;
+    const at = t ?? this.ctx.currentTime + 0.01;
+    // a whole verse can be taken in at once; it should ripple, not rattle
+    if (t === undefined && at - this.lastTaste < 0.08) return;
+    this.lastTaste = at;
+    const s = this.current?.scale ?? DEFAULT_SCALE;
+    const walk = [0, 2, 1, 3, 2, 4, 3, 1];
+    this.note(s[walk[step % walk.length]] + 12, at, 0.011, 1.4);
   }
 
   /** A soft note for each word caught on a ride, climbing the scale with every one. */
@@ -361,7 +378,7 @@ export const audio = new AudioEngine();
  * Renders a stretch of a piece with some of the game's small sounds over it, offline: to listen
  * to the balance, and to check it in the tests.
  */
-export async function renderPreview(trackId: string, seconds: number, events: { at: number; kind: ChimeKind | 'pluck' | 'resonance'; step?: number }[], offset = 30) {
+export async function renderPreview(trackId: string, seconds: number, events: { at: number; kind: ChimeKind | 'pluck' | 'taste' | 'resonance'; step?: number }[], offset = 30) {
   const track = trackById(trackId);
   const rate = 44100;
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * rate), rate);
@@ -376,6 +393,7 @@ export async function renderPreview(trackId: string, seconds: number, events: { 
   src.start(0, offset);
   for (const e of events) {
     if (e.kind === 'pluck') engine.pluck(e.step ?? 0, e.at);
+    else if (e.kind === 'taste') engine.taste(e.step ?? 0, e.at);
     else if (e.kind === 'resonance') engine.resonance(e.at);
     else engine.chime(e.kind, e.at);
   }

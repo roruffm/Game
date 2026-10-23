@@ -1006,6 +1006,11 @@ p {
   animation: thought-line 1s ease-out both;
 }
 
+/* read: the words have left the thought as food; where they came from stays until the next one */
+.thought-body.ripe .tl {
+  display: none;
+}
+
 .thought .thought-ref,
 .thought .source-line,
 .thought .thought-actions {

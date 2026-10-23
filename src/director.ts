@@ -10,10 +10,13 @@ import { EmmausEncounter } from './encounters/emmaus';
 import type { EncounterScene } from './encounters/kit';
 import { ProdigalEncounter } from './encounters/prodigal';
 import { StormEncounter } from './encounters/storm';
+import type { Morsel } from './engine/food';
 import { Game } from './engine/game';
+import { STAGES } from './engine/growth';
 import type { Memory } from './engine/organism';
 import { clearSave, loadSave, persist, type Discovery, type SaveData, type Settings } from './state/save';
-import { organismAnchor, store, toast, type Panel } from './state/store';
+import { organismAnchor, store, thoughtControl, toast, type Panel } from './state/store';
+import type { SpilledWord } from './ui/Thought';
 import type { GraphData, Thread } from './world/model';
 import { WorldModel } from './world/model';
 import type { RideInfo } from './world/ride';
@@ -55,6 +58,8 @@ export class Director {
   encounter: { id: EncounterId; scene: EncounterScene } | null = null;
   private lastResonance = -Infinity;
   private memoriesShown = false;
+  /** Counts the words taken in during this visit, so their notes wander through the scale. */
+  private tastes = 0;
 
   async boot(stage: HTMLElement) {
     try {
@@ -80,6 +85,8 @@ export class Director {
         organismAnchor.x = s.x;
         organismAnchor.y = s.y;
       };
+      this.game.organism.setGrowth(this.save.nourished, false);
+      this.game.food.onEat = (m) => this.eat(m);
       this.game.quality.reducedMotion ||= this.save.settings.reducedMotion;
       this.applyMotion();
       this.model = new WorldModel(this.bible, this.xrefs, this.save, graph as GraphData);
@@ -319,6 +326,8 @@ export class Director {
       if (store.get().phase === 'world' && !store.get().traveling) audio.setMood('world', 4);
     }, 5000);
     this.markLink(info.link);
+    // the words caught on the way were taken in already
+    this.nourish(r.caught.length);
     await this.discover({ start: info.target.start, end: info.target.end, chapter: r.to, kind: 'reference', via: linkKey(info.link), at: Date.now() });
   }
 
@@ -326,9 +335,68 @@ export class Director {
   openReveal() {
     const reveal = store.get().reveal;
     if (!reveal) return;
+    thoughtControl.ripen();
     store.set({ reveal: null });
     this.setPanel(reveal.panel);
     audio.chime('thread');
+  }
+
+  // ── Words as food ───────────────────────────────────────────────────
+
+  /** A verse has been read: its words leave the thought (screen positions) and float in the world. */
+  spill(words: SpilledWord[], color: number) {
+    if (!words.length || store.get().phase === 'start') return;
+    const cam = this.game.camera;
+    const mid = { x: words.reduce((s, w) => s + w.x, 0) / words.length, y: words.reduce((s, w) => s + w.y, 0) / words.length };
+    this.game.food.spill(
+      words.map((w) => ({ word: w.word, size: w.size, ...cam.toWorld(w.x, w.y) })),
+      color,
+      cam.toWorld(mid.x, mid.y),
+    );
+    this.tip('food', 'Die gelesenen Worte lösen sich.', 'Schwimm durch sie hindurch: Der Organismus nimmt sie auf und wächst davon.', 8000);
+  }
+
+  /** One word taken in. */
+  private eat(m: Morsel) {
+    this.game.organism.feed(m.color);
+    audio.taste(this.tastes++);
+    this.nourish(1);
+    if (!this.save.tips.includes('fed')) {
+      this.save.tips.push('fed');
+      window.setTimeout(() => void this.firstMeal(), 1800);
+    }
+  }
+
+  /** Grows the organism by `words` words taken in. */
+  private nourish(words: number) {
+    if (words <= 0) return;
+    this.save.nourished += words;
+    persist(this.save);
+    for (let i = 0; i < Math.min(words, 4) - 1; i++) window.setTimeout(() => this.game.organism.feed(0xffd98a), 160 * (i + 1));
+    if (!this.game.organism.setGrowth(this.save.nourished)) return;
+    const stage = STAGES[this.game.organism.stage - 1];
+    audio.chime('grow');
+    toast(`Der Organismus entfaltet ${stage.name}.`, 'Genährt von den Worten, die du gelesen hast.', 6500);
+  }
+
+  /** The first word taken in: what the image means, in the words of scripture. */
+  private async firstMeal() {
+    try {
+      const text = await this.bible.text(this.bible.range('JER 15:16'));
+      // up to the second clause; the rest of the verse names the prophet's calling
+      const part = text.split(';').slice(0, 2).join(';').trim();
+      toast(`„${part} …“`, 'Jeremia 15,16a · Lutherbibel 1912', 9000);
+    } catch {
+      // without the text there is nothing to quote
+    }
+  }
+
+  /** A one-time hint. */
+  private tip(id: string, text: string, sub: string, ms: number) {
+    if (this.save.tips.includes(id)) return;
+    this.save.tips.push(id);
+    persist(this.save);
+    toast(text, sub, ms);
   }
 
   markLink(l: XLink) {
@@ -503,7 +571,15 @@ export class Director {
       director: this,
       state: () => ({
         phase: store.get().phase,
-        organism: { x: this.game.organism.x, y: this.game.organism.y, carried: this.game.organism.carried },
+        organism: {
+          x: this.game.organism.x,
+          y: this.game.organism.y,
+          carried: this.game.organism.carried,
+          nourished: this.save.nourished,
+          stage: this.game.organism.stage,
+          segments: this.game.organism.segments,
+        },
+        food: this.game.food.count,
         camera: { x: this.game.camera.x, y: this.game.camera.y, zoom: this.game.camera.zoom },
         encounter: this.encounter ? { id: this.encounter.id, objective: this.encounter.scene.objective(), ui: store.get().encounter } : null,
         nodes: [...this.model.nodes.values()].map((n) => ({ chapter: n.chapter, kind: n.kind, title: n.title, x: n.x, y: n.y, completed: n.completed })),

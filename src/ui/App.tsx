@@ -5,9 +5,9 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { audio } from '../audio/audio';
 import { encounterById } from '../content/encounters';
 import { director } from '../director';
-import { focusAnchor, store, useStore, type Beat, type Panel } from '../state/store';
+import { focusAnchor, store, thoughtControl, useStore, type Beat, type Panel } from '../state/store';
 import { Icon } from './common';
-import { Thought, useLines, useThoughtLayout, type ThoughtItem } from './Thought';
+import { Thought, useLines, useThoughtLayout, type SpilledWord, type ThoughtItem } from './Thought';
 import { Credits } from './panels/Credits';
 import { EncounterEnd } from './panels/EncounterEnd';
 import { Journal } from './panels/Journal';
@@ -344,6 +344,20 @@ function EncounterOverlay() {
   );
 }
 
+/** Draws the words of a line as spans, so each can leave the thought on its own. */
+const wordSpans = (line: number[], words: string[], caught?: (i: number) => boolean) =>
+  line.map((i, j) => (
+    <Fragment key={i}>
+      {j > 0 && ' '}
+      <span className={caught?.(i) ? 'w caught' : 'w'}>{words[i]}</span>
+    </Fragment>
+  ));
+
+/** Scripture is food once read; guidance is not. */
+const SPILL = (color: number) => (words: SpilledWord[]) => director.spill(words, color);
+const spillVerse = SPILL(0xffe2a8);
+const spillReveal = SPILL(0xa8e6ff);
+
 /** A verse of the encounter, rising beside the organism. */
 function BeatThought({ beat }: { beat: Beat }) {
   const layout = useThoughtLayout();
@@ -352,8 +366,14 @@ function BeatThought({ beat }: { beat: Beat }) {
   const caption = beat.kind === 'bibel' ? `${beat.label} · Lutherbibel 1912` : beat.label;
   const item = useMemo<ThoughtItem>(() => {
     const texts = lines.map((l) => l.map((i) => words[i]).join(' '));
-    return { key: `beat-${beat.seq ?? beat.ref}`, texts, lines: texts, foot: <p className="thought-ref">{caption}</p> };
-  }, [lines, words, beat.seq, beat.ref, caption]);
+    return {
+      key: `beat-${beat.seq ?? beat.ref}`,
+      texts,
+      lines: lines.map((l) => wordSpans(l, words)),
+      foot: <p className="thought-ref">{caption}</p>,
+      ...(beat.kind === 'hinweis' ? {} : { ripe: spillVerse }),
+    };
+  }, [lines, words, beat.seq, beat.ref, beat.kind, caption]);
   return <Thought item={item} layout={layout} className={beat.kind} live={`${beat.text} – ${caption}`} />;
 }
 
@@ -371,15 +391,11 @@ function RideReveal() {
       head: <p className="kicker">Lichtfaden · im Datensatz</p>,
       lines: lines.map((l, k) => (
         <>
-          {l.map((i, j) => (
-            <Fragment key={i}>
-              {j > 0 && ' '}
-              <span className={reveal.words[i].caught ? 'w caught' : 'w'}>{reveal.words[i].text}</span>
-            </Fragment>
-          ))}
+          {wordSpans(l, words, (i) => reveal.words[i].caught)}
           {k === lines.length - 1 && reveal.truncated && <span className="w"> …</span>}
         </>
       )),
+      ripe: spillReveal,
       foot: (
         <>
           <p className="thought-ref">
@@ -393,7 +409,13 @@ function RideReveal() {
             <button className="btn primary small" id="reveal-open" onClick={() => director.openReveal()}>
               Verbindung ansehen
             </button>
-            <button className="btn small" onClick={() => store.set({ reveal: null })}>
+            <button
+              className="btn small"
+              onClick={() => {
+                thoughtControl.ripen();
+                store.set({ reveal: null });
+              }}
+            >
               Weiter
             </button>
           </div>

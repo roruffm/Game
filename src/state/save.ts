@@ -40,6 +40,8 @@ export interface SaveData {
   tips: string[];
   /** Chapters a resonance brought to light beyond the usual few hints per discovery. */
   revealed: number[];
+  /** Words of the verses the organism has taken in; it grows from them. */
+  nourished: number;
 }
 
 const KEY = 'wortstrom.save.v1';
@@ -56,6 +58,7 @@ export const freshSave = (reducedMotion = false): SaveData => ({
   theme: null,
   tips: [],
   revealed: [],
+  nourished: 0,
 });
 
 export function loadSave(): { data: SaveData; existed: boolean } {
@@ -65,7 +68,9 @@ export function loadSave(): { data: SaveData; existed: boolean } {
       const parsed = JSON.parse(raw) as SaveData;
       if (parsed.version === 1) {
         const base = freshSave();
-        return { data: { ...base, ...parsed, settings: { ...base.settings, ...parsed.settings } }, existed: parsed.discoveries.length > 0 };
+        // worlds saved before the organism fed on words: it grows as much as it would have read
+        const nourished = parsed.nourished ?? parsed.discoveries.length * 12 + (parsed.encounters?.length ?? 0) * 60;
+        return { data: { ...base, ...parsed, nourished, settings: { ...base.settings, ...parsed.settings } }, existed: parsed.discoveries.length > 0 };
       }
     }
   } catch {
