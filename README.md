@@ -100,9 +100,31 @@ unter Wind und Wellen, in der Fremde wie aus der Ferne. Die Klänge des Spiels (
 ein Wort wird gefangen, eine Entdeckung) sind leise Klaviertöne in der Tonart des Stücks, das gerade
 läuft, und liegen deutlich unter der Musik.
 
-### Die drei Begegnungen
+### Ein Tauchgang: Vom Sämann (Lukas 8,4–15)
 
-Jede Begegnung erzählt ihre Stelle in Szenen, im selben Licht wie der Organismus: keine Bilder und
+Die vierte Begegnung ist wie *flOw* gebaut: als Tauchgang durch Ebenen, die übereinanderliegen. Die
+nächste Ebene schimmert immer klein und blass darunter; ein warmes **Tiefenlicht** führt hinab, ein
+kühles **Quelllicht** (in einer Ecke jeder Ebene) wieder hinauf, und wann es weitergeht, entscheidet
+man selbst. Jede Ebene ist ein Boden aus dem Gleichnis, und ihre Spielregel ist, was der Text von ihm
+sagt. Die Saat sind die Kernwörter der Verse (Substantive, Verben, Adjektive); fängt man ein
+Samenkorn, nimmt der Organismus das Wort auf und trägt es als goldenes Korn bei sich.
+
+| Ebene | Vers | Was geschieht |
+|---|---|---|
+| Das Volk | 8,4 | Die Menge sammelt sich; oben geht ein Sämann über den Acker und wirft die Saat in die Tiefe. |
+| Der Weg | 8,5 | Samen liegen auf dem Weg; jemand geht darüber und zertritt sie, Vögel holen sie (und manchmal ein Korn, das man trägt). Wer auf die Vögel zuschwimmt, verscheucht sie. |
+| Der Fels | 8,6 | Was auf den Fels fällt, geht sofort auf und verdorrt ebenso schnell: Man muss es fangen, solange es grünt. |
+| Die Dornen | 8,7 | Dornen wachsen rings um jedes Samenkorn hoch und schließen sich; durch zwei wandernde Lücken kommt man hinein. Ein Dorn kostet ein getragenes Korn – trägt man keines mehr, tragen die Dornen einen eine Ebene hinauf, wie in *flOw*. |
+| Gutes Land | 8,8 | Was hier fällt und was man sät, indem man langsam über das Land gleitet, wächst zu Halmen und trägt Frucht; die Frucht nährt den Organismus. |
+| Der Same ist das Wort | 8,9–15 | Jesus deutet das Gleichnis; die vier Böden leuchten, während er von ihnen spricht. Dann kehrt Lukas 8,15 mit Lücken zurück: Die fehlenden Worte („Wort“, „hören“, „behalten“ …) treiben zwischen anderen; fängt man sie, setzt sich der Vers wieder zusammen. |
+
+Nichts wird gezählt, und nichts geht endgültig verloren: Wenn eine Ebene ihre Saat nicht hergibt, erscheint
+das Tiefenlicht nach einer Weile trotzdem. Während dieses Tauchgangs werden gelesene Verse nicht zusätzlich
+zu treibenden Wörtern; die Saat sind ihre Wörter.
+
+### Die drei erzählten Begegnungen
+
+Jede dieser Begegnungen erzählt ihre Stelle in Szenen, im selben Licht wie der Organismus: keine Bilder und
 keine Umrisse, nur Lichter, Schimmer und weiche Blätter aus Licht. Menschen sind kleine Gestalten
 aus Kopf und Leib, ein Schwein ist ein runder, warmer Lichtkörper mit Rüssel und Ringelschwanz.
 Jede Szene beginnt erst, wenn ihr Vers angezeigt wird, damit Text und Bild zusammengehen. Was der
@@ -179,8 +201,8 @@ src/
   world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung),
                 ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung),
                 resonanceView.ts (die Resonanz-Welle)
-  encounters/   Encounter Engine (kit.ts), je ein Modul pro Begegnung und die Figuren und Dinge der
-                Geschichten aus Licht (props.ts)
+  encounters/   Encounter Engine (kit.ts), je ein Modul pro Begegnung (sower.ts: der Tauchgang) und
+                die Figuren und Dinge der Geschichten aus Licht (props.ts)
   audio/        Audio Engine: Musikstücke je Situation mit Überblendung, Stimmungen färben sie (tracks.ts);
                 Ereignisklänge als leise Klaviertöne in der Tonart des laufenden Stücks; Wind im Sturm
   state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse und wann sie gelesen
@@ -204,7 +226,8 @@ npm test           # Unit-Tests (Vitest): Daten, Bibel-Service, Querverweise, We
 npm run test:e2e   # Browser-Tests (Playwright, Chromium) gegen den Build: npm run build vorher
 ```
 
-Die Browser-Tests spielen alle drei Begegnungen vollständig mit der Maus durch, prüfen Bewegung per
+Die Browser-Tests spielen alle vier Begegnungen vollständig mit der Maus durch (beim Tauchgang bis
+zum Grund und bis der Lückenvers vollständig ist), prüfen Bewegung per
 Tastatur, Maus und Touch, Suche, Themen, Einstellungen, Speichern und Zurücksetzen, das Fressen
 gelesener Verse und das Wachsen des Organismus, die
 Kennzeichnung der drei Verbindungsebenen und das Verhalten auf einem Smartphone-Viewport. In der

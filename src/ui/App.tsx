@@ -315,7 +315,7 @@ function EncounterOverlay() {
         </div>
       </header>
       {beats.length === 0 && <p className="hinfuehrung">{info.intro}</p>}
-      {latest && <BeatThought beat={latest} />}
+      {latest && !enc.quiet && <BeatThought beat={latest} />}
       {enc.hint && (
         <p className="enc-hint">
           <span>Hinweis</span> {enc.hint}
@@ -361,6 +361,8 @@ const spillReveal = SPILL(0xa8e6ff);
 /** A verse of the encounter, rising beside the organism. */
 function BeatThought({ beat }: { beat: Beat }) {
   const layout = useThoughtLayout();
+  const encounter = useStore((s) => s.encounter?.id);
+  const spills = beat.kind !== 'hinweis' && !(encounter && encounterById(encounter).ownFood);
   const words = useMemo(() => beat.text.split(/\s+/).filter(Boolean), [beat.text]);
   const lines = useLines(words, layout);
   const caption = beat.kind === 'bibel' ? `${beat.label} · Lutherbibel 1912` : beat.label;
@@ -371,9 +373,9 @@ function BeatThought({ beat }: { beat: Beat }) {
       texts,
       lines: lines.map((l) => wordSpans(l, words)),
       foot: <p className="thought-ref">{caption}</p>,
-      ...(beat.kind === 'hinweis' ? {} : { ripe: spillVerse }),
+      ...(spills ? { ripe: spillVerse } : {}),
     };
-  }, [lines, words, beat.seq, beat.ref, beat.kind, caption]);
+  }, [lines, words, beat.seq, beat.ref, spills, caption]);
   return <Thought item={item} layout={layout} className={beat.kind} live={`${beat.text} – ${caption}`} />;
 }
 

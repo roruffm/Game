@@ -3,8 +3,8 @@
 // loudness (−18 LUFS). Each situation of the game has its own; the moods within it only colour
 // the music (quieter and muffled in the storm, distant far from home).
 
-export type Scene = 'world' | 'storm' | 'prodigal' | 'emmaus';
-export type Mood = 'world' | 'storm' | 'calm' | 'far' | 'home' | 'path' | 'reveal';
+export type Scene = 'world' | 'saemann' | 'storm' | 'prodigal' | 'emmaus';
+export type Mood = 'world' | 'storm' | 'calm' | 'far' | 'home' | 'path' | 'reveal' | 'deep';
 
 export interface Track {
   id: string;
@@ -75,6 +75,8 @@ export const TRACKS: Track[] = [
 /** The pieces of each situation, played in turn. */
 export const SCENES: Record<Scene, string[]> = {
   world: ['welt-1', 'welt-2'],
+  // "All Creatures of Our God and King": the creation hymn for the parable of seed and ground
+  saemann: ['sohn'],
   storm: ['sturm'],
   prodigal: ['sohn'],
   emmaus: ['emmaus'],
@@ -87,6 +89,8 @@ export const TREATMENT: Record<Mood, { gain: number; cutoff: number }> = {
   calm: { gain: 1, cutoff: 16000 },
   home: { gain: 1, cutoff: 16000 },
   reveal: { gain: 1.12, cutoff: 16000 },
+  // deeper down in a dive the music grows quieter and darker
+  deep: { gain: 0.8, cutoff: 2400 },
   far: { gain: 0.55, cutoff: 1100 },
   storm: { gain: 0.4, cutoff: 800 },
 };

@@ -64,12 +64,13 @@ describe('themes', () => {
 
 describe('encounters', () => {
   it('each rests on a real passage with its key verse inside it', () => {
-    expect(ENCOUNTERS.map((e) => e.id)).toEqual(['storm', 'prodigal', 'emmaus']);
+    expect(ENCOUNTERS.map((e) => e.id)).toEqual(['saemann', 'storm', 'prodigal', 'emmaus']);
     for (const e of ENCOUNTERS) {
       const r = bible.range(e.range);
       const k = bible.range(e.keyVerse);
       expect(k.start >= r.start && k.end <= r.end).toBe(true);
-      expect(e.phases).toHaveLength(4);
+      // the dive has a layer for each kind of ground; the others have four phases
+      expect(e.phases).toHaveLength(e.id === 'saemann' ? 6 : 4);
     }
   });
 });

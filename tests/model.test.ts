@@ -18,10 +18,10 @@ const discovery = (spec: string, kind: 'encounter' | 'reference' = 'reference') 
 };
 
 describe('World Engine', () => {
-  it('starts with the three encounters and nothing else', async () => {
+  it('starts with the four encounters and nothing else', async () => {
     const { m } = model();
     await m.init();
-    expect([...m.nodes.values()].map((n) => n.kind)).toEqual(['encounter', 'encounter', 'encounter']);
+    expect([...m.nodes.values()].map((n) => n.kind)).toEqual(['encounter', 'encounter', 'encounter', 'encounter']);
     expect(m.threads).toHaveLength(0);
   });
 

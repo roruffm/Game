@@ -5,7 +5,7 @@ test('starts without errors and the organism glides with keyboard and mouse', as
   const errors = watchErrors(page);
   await startGame(page);
   const a = await state(page);
-  expect(a.nodes.filter((n) => n.kind === 'encounter')).toHaveLength(3);
+  expect(a.nodes.filter((n) => n.kind === 'encounter')).toHaveLength(4);
 
   await page.keyboard.down('ArrowRight');
   await page.waitForTimeout(2500);

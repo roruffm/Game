@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breakLines, lineStarts, readingHold, ripeAfter } from '../src/state/reading';
+import { breakLines, keyWords, lineStarts, readingHold, ripeAfter } from '../src/state/reading';
 
 describe('verses unfolding like a thought', () => {
   it('lets every line wait until the one before can be read', () => {
@@ -29,6 +29,19 @@ describe('verses unfolding like a thought', () => {
     expect(ripeAfter(lines)).toBeGreaterThan(starts[2] + 2);
     expect(ripeAfter([...lines, 'und noch eine Zeile'])).toBeGreaterThan(ripeAfter(lines));
     expect(ripeAfter([])).toBe(0);
+  });
+
+  it('finds the words of a verse that carry its meaning', () => {
+    const v5 = 'Es ging ein Säemann aus, zu säen seinen Samen. Und indem er säte, fiel etliches an den Weg und ward zertreten und die Vögel unter dem Himmel fraßen\'s auf.';
+    const words = keyWords(v5);
+    expect(words).toContain('Säemann');
+    expect(words).toContain('Vögel');
+    expect(words).toContain('Weg');
+    expect(words).not.toContain('und');
+    expect(words).not.toContain('etliches');
+    // once each, without punctuation
+    expect(words.filter((w) => w.toLowerCase() === 'samen')).toEqual(['Samen']);
+    expect(words.every((w) => /^\p{L}/u.test(w) && /\p{L}$/u.test(w))).toBe(true);
   });
 
   it('breaks words into lines that fit', () => {
