@@ -993,6 +993,87 @@ p {
   margin-bottom: 6px;
 }
 
+/* ── A ride's verse ───────────────────────────────────────── */
+
+.reveal {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 32px));
+  margin: 0;
+  padding: 14px 18px 12px;
+  border: 1px solid rgba(255, 226, 168, 0.45);
+  border-radius: 16px;
+  background: rgba(4, 8, 22, 0.74);
+  backdrop-filter: blur(6px);
+  animation: reveal-in 0.6s ease-out both;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+}
+
+.reveal .kicker {
+  color: var(--gold);
+}
+
+.reveal blockquote {
+  margin: 4px 0 0;
+  font: 400 clamp(17px, 2.4vw, 20px) / 1.55 var(--scripture);
+  color: var(--ink);
+}
+
+.reveal .w {
+  display: inline-block;
+  animation: word-in 0.9s ease-out both;
+}
+
+.reveal .w.caught {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(255, 200, 110, 0.55);
+  animation-name: word-caught;
+}
+
+@keyframes word-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes word-caught {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(1.12);
+    filter: blur(3px);
+  }
+}
+
+.reveal figcaption {
+  margin-top: 8px;
+  font: 600 11px var(--ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.reveal figcaption .alt {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+}
+
+.reveal .source-line {
+  margin: 4px 0 10px;
+}
+
+body.reduce-motion .reveal .w {
+  animation-delay: 0s !important;
+}
+
 /* ── Toasts ───────────────────────────────────────────────── */
 
 .toasts {
@@ -1070,7 +1151,8 @@ p {
     display: none;
   }
 
-  .beat.now blockquote {
+  .beat.now blockquote,
+  .reveal blockquote {
     font-size: 16px;
   }
 
@@ -1088,7 +1170,8 @@ body.reduce-motion *::after {
 
 /* Phones held sideways: little height, so the verse moves to the right-hand side. */
 @media (max-height: 500px) and (min-width: 600px) {
-  .beats {
+  .beats,
+  .reveal {
     left: auto;
     right: max(16px, env(safe-area-inset-right));
     transform: none;
@@ -1098,6 +1181,10 @@ body.reduce-motion *::after {
   .beat.now blockquote {
     font-size: 15px;
     line-height: 1.45;
+  }
+
+  .reveal {
+    animation-name: word-in;
   }
 
   .beat.old {
@@ -1120,6 +1207,10 @@ body.reduce-motion *::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reveal .w {
+    animation-delay: 0s !important;
+  }
+
   *,
   *::before,
   *::after {

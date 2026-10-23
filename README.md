@@ -19,9 +19,21 @@ Danach `http://localhost:5173` öffnen. Für eine Produktionsfassung: `npm run b
 | Gleiten | Maus zeigt die Richtung, WASD oder Pfeiltasten, Umschalt = schneller | irgendwo auf den Bildschirm legen und ziehen (weicher Joystick) |
 | Knoten ansehen | Klick (erster Klick zeigt Titel und schwebt hin) | Tippen |
 | Eintreten / Folgen | zweiter Klick oder Enter | zweites Tippen oder Knopf auf der Karte |
+| Lichtfaden reiten | an einem Faden entlang gleiten, oder ein fernes Licht anklicken | entlang ziehen, oder ein fernes Licht antippen |
+| Strömung verlassen | seitlich hinaussteuern oder kräftig dagegen | seitlich hinausziehen |
 | Zoom | Mausrad, + / − | zwei Finger |
 | Übersicht, Karte | J, M | Symbole oben rechts |
 | Schließen, Begegnung verlassen | Esc | Symbol oben rechts |
+
+### Lichtfäden reiten
+
+Jeder Lichtfaden ist eine Strömung. Wer an ihm entlang gleitet oder ein fernes Licht wählt, wird
+von ihm getragen, schneller bei Verweisen mit vielen Stimmen. Neben der Strömung treiben die Wörter
+des Zielverses; wer sich ein wenig zur Seite lenkt, fängt sie ein. Am Ziel setzt sich der Vers
+zusammen: die gefangenen Wörter zuerst und golden, die übrigen danach. Der Vers ist immer
+vollständig, es wird nichts gezählt. Darunter stehen der Querverweis aus dem Datensatz mit seinen
+Stimmen und der Weg zum ganzen Vergleich. Fäden zu fernen Lichtern fließen nur zum Unbekannten hin,
+Fäden zwischen entdeckten Stellen in beide Richtungen.
 
 Hoch- und Querformat werden unterstützt. In den Einstellungen lassen sich Ton, Lautstärke,
 reduzierte Animationen, eine reduzierte Ansicht und die Mindeststimmen der Querverweise einstellen;
@@ -95,7 +107,8 @@ src/
   xref/         Cross-Reference Engine: Verweise, Gruppierung nach Kapiteln, Worthinweise
   content/      Redaktionelles: Begegnungen, Themen, Erklärungen (vom Datensatz getrennt)
   engine/       Game Engine: Pixi-App, Kamera, Eingabe, Organismus, Partikel, Rauschen, Texturen
-  world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung)
+  world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung),
+                ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung)
   encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
   audio/        Audio Engine: Klangflächen je Stimmung, wächst mit der Welt
   state/        Speicher (save.ts) und UI-Zustand (store.ts)

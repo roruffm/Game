@@ -3,6 +3,7 @@
 // cross-references between them.
 
 import { Container, Graphics, Particle, ParticleContainer, Sprite, Text } from 'pixi.js';
+import { audio } from '../audio/audio';
 import { BOOKS, GROUPS } from '../bible/books';
 import { ENCOUNTERS } from '../content/encounters';
 import type { Game, Scene } from '../engine/game';
@@ -11,11 +12,38 @@ import { DriftField, Stream } from '../engine/particles';
 import { textures } from '../engine/textures';
 import { focusAnchor, store, type Focus } from '../state/store';
 import type { Thread, WorldModel, WorldNode } from './model';
+import { bezier, catchCurrent, Current, hash, placeWords, rideSpeed, threadCurve, ThreadPath, type RideInfo } from './ride';
+import { RideView } from './rideView';
 
 export interface WorldHooks {
   activate(chapter: number): void;
   openThread(thread: Thread): void;
   arrived(chapter: number): void;
+  /** The cross-reference and verse a ride leads to. */
+  rideInfo(thread: Thread, from: number, to: number): Promise<RideInfo>;
+  rideStarted(): void;
+  rideArrived(ride: { thread: Thread; from: number; to: number; info: RideInfo | null; caught: number[] }): void;
+}
+
+interface Ride {
+  key: string;
+  thread: Thread;
+  from: number;
+  to: number;
+  current: Current;
+  view: RideView;
+  info: RideInfo | null;
+  caught: number[];
+  /** Started by a tap or a journey, not by gliding into the thread. */
+  auto: boolean;
+  zoomBefore: number;
+}
+
+/** A journey to a node that rides a thread for most of the way. */
+interface RidePlan {
+  thread: Thread;
+  from: number;
+  s: number;
 }
 
 interface NodeView {
@@ -32,11 +60,6 @@ const OT_THREAD = 0xf0b45e;
 const ENCOUNTER_RANGES = Object.fromEntries(ENCOUNTERS.map((e) => [e.id, e.range])) as Record<string, string>;
 const ENCOUNTER_RADIUS = 110;
 const NODE_RADIUS = 70;
-
-const hash = (n: number) => {
-  const x = Math.sin(n * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-};
 
 export class WorldScene implements Scene {
   readonly root = new Container();
@@ -56,7 +79,14 @@ export class WorldScene implements Scene {
   private joystick = new Graphics();
   private hovered: Thread | null = null;
   private focusChapter: number | null = null;
-  private autopilot: { chapter: number; x: number; y: number } | null = null;
+  private autopilot: { chapter: number; x: number; y: number; ride?: RidePlan } | null = null;
+  private ride: Ride | null = null;
+  /** Ride views fading out after a ride ended. */
+  private fadingRides: RideView[] = [];
+  private paths = new Map<string, ThreadPath>();
+  /** Brief pause after leaving a current, so it does not catch the organism again at once. */
+  private rideCooldown = 0;
+  private scanFrame = 0;
   /** Seconds of gentle braking after the autopilot arrived, so the organism settles at the node. */
   private docking = 0;
   private time = 0;
@@ -148,6 +178,7 @@ export class WorldScene implements Scene {
     this.root.removeChild(this.game.organism.trailLayer, this.game.organism.root);
     this.game.screenLayer.removeChild(this.overlay);
     this.stopTravel();
+    this.endRide(false);
     focusAnchor.visible = false;
     store.set({ focus: null });
   }
@@ -201,9 +232,16 @@ export class WorldScene implements Scene {
   }
 
   travelTo(chapter: number) {
+    if (this.ride?.to === chapter) return;
+    this.endRide(false);
     const node = this.model.nodes.get(chapter);
     const pos = node ?? this.model.position(chapter);
-    this.autopilot = { chapter, x: pos.x, y: pos.y };
+    // where a thread leads to the node, glide to the thread and let it carry you
+    const plan = this.planRide(chapter);
+    if (plan) {
+      const e = this.pathFor(plan.thread, plan.from).at(plan.s);
+      this.autopilot = { chapter, x: e.x, y: e.y, ride: plan };
+    } else this.autopilot = { chapter, x: pos.x, y: pos.y };
     store.set({ traveling: true });
   }
 
@@ -211,6 +249,113 @@ export class WorldScene implements Scene {
     if (!this.autopilot) return;
     this.autopilot = null;
     store.set({ traveling: false });
+  }
+
+  /** The thread's path, oriented from `from` to the other end. */
+  private pathFor(t: Thread, from: number) {
+    const key = from === t.a ? `${t.a}>${t.b}` : `${t.a}<${t.b}`;
+    let p = this.paths.get(key);
+    if (!p) {
+      const { a, b, c } = this.curve(t);
+      const forward = ThreadPath.fromCurve(a, c, b);
+      p = from === t.a ? forward : forward.reversed();
+      this.paths.set(key, p);
+    }
+    return p;
+  }
+
+  /** Hint threads flow only towards the unknown; threads between known passages flow both ways. */
+  private rideable(t: Thread, from: number) {
+    if (this.reducedView && t.kind === 'hint') return false;
+    return from === t.a || t.kind === 'known';
+  }
+
+  private planRide(chapter: number): RidePlan | null {
+    const org = this.game.organism;
+    const target = this.model.position(chapter);
+    const direct = Math.hypot(target.x - org.x, target.y - org.y);
+    if (direct < 260) return null;
+    let best: (RidePlan & { cost: number; reach: number }) | null = null;
+    for (const t of this.model.threads) {
+      const from = t.b === chapter ? t.a : t.a === chapter ? t.b : -1;
+      if (from < 0 || !this.rideable(t, from)) continue;
+      const path = this.pathFor(t, from);
+      if (path.length < 320) continue;
+      const s = Math.min(path.project(org.x, org.y).s, path.length - 260);
+      const e = path.at(s);
+      const reach = Math.hypot(e.x - org.x, e.y - org.y);
+      const cost = reach + (path.length - s) * 0.25;
+      if (!best || cost < best.cost) best = { thread: t, from, s, cost, reach };
+    }
+    // only when the thread is on the way, not a detour
+    return best && best.reach < direct * 0.8 ? { thread: best.thread, from: best.from, s: best.s } : null;
+  }
+
+  private startRide(thread: Thread, from: number, s: number, auto: boolean) {
+    this.endRide(false);
+    this.stopTravel();
+    const to = from === thread.a ? thread.b : thread.a;
+    const path = this.pathFor(thread, from);
+    const color = thread.ot ? OT_THREAD : 0x9ff0ff;
+    const view = new RideView(path, color, this.game.quality.particles, this.game.quality.reducedMotion);
+    this.root.addChildAt(view.world, this.root.getChildIndex(this.nodeLayer));
+    this.overlay.addChildAt(view.screen, 0);
+    const cam = this.game.camera;
+    const ride: Ride = {
+      key: from === thread.a ? `${thread.a}>${thread.b}` : `${thread.a}<${thread.b}`,
+      thread,
+      from,
+      to,
+      current: new Current(path, rideSpeed(thread.votes), s),
+      view,
+      info: null,
+      caught: [],
+      auto,
+      zoomBefore: cam.targetZoom,
+    };
+    this.ride = ride;
+    this.focusChapter = to;
+    cam.targetZoom = cam.targetZoom * 0.85;
+    store.set({ traveling: true, reveal: null });
+    audio.chime('thread');
+    audio.setMood('path', 1.5);
+    this.hooks.rideStarted();
+    this.hooks
+      .rideInfo(thread, from, to)
+      .then((info) => {
+        if (this.ride !== ride) return;
+        ride.info = info;
+        // keep the words readable on screen: further apart when zoomed out (phones)
+        const gap = Math.max(90, 75 / this.game.camera.targetZoom);
+        view.setWords(info.words, placeWords(info.words.length, ride.current.s + 160, path.length - 90, 30, gap));
+      })
+      .catch(() => undefined);
+  }
+
+  private endRide(arrived: boolean) {
+    const ride = this.ride;
+    if (!ride) return;
+    this.ride = null;
+    store.set({ traveling: false });
+    const cam = this.game.camera;
+    // give back the zoom, unless the player changed it on the way
+    if (Math.abs(cam.targetZoom - ride.zoomBefore * 0.85) < 0.01) cam.targetZoom = ride.zoomBefore;
+    if (arrived) {
+      ride.view.gather(this.model.position(ride.to));
+      this.docking = 1.5;
+      this.hooks.rideArrived({ thread: ride.thread, from: ride.from, to: ride.to, info: ride.info, caught: ride.caught });
+    } else {
+      ride.view.release();
+      this.rideCooldown = 1;
+      audio.setMood('world', 2);
+    }
+    this.fadingRides.push(ride.view);
+  }
+
+  /** For tests and the console. */
+  rideState() {
+    const r = this.ride;
+    return r ? { from: r.from, to: r.to, s: r.current.s, length: r.current.path.length, words: r.info?.words.length ?? 0, caught: r.caught.length } : null;
   }
 
   flare(chapter: number) {
@@ -224,15 +369,32 @@ export class WorldScene implements Scene {
     const cam = game.camera;
     const org = game.organism;
 
-    // movement: autopilot along a thread, or the player's own steering
+    // movement: riding a thread, the autopilot, or the player's own steering
     let steer = game.input.steer(cam, org.x, org.y);
-    if (this.autopilot) {
+    this.rideCooldown = Math.max(0, this.rideCooldown - dt);
+    if (this.ride) {
+      const ride = this.ride;
+      // on a ride the player started with a tap, the mouse does not tug at the organism
+      const own = ride.auto && game.input.lastDevice === 'mouse' ? { x: 0, y: 0 } : { x: steer.x * steer.thrust, y: steer.y * steer.thrust };
+      const step = ride.current.step(dt, org, own);
+      if (step.arrived || step.released) this.endRide(step.arrived);
+      else {
+        const m = Math.hypot(step.want.x, step.want.y) || 1;
+        org.maxSpeed = ride.current.speed * 1.4;
+        steer = { x: step.want.x / m, y: step.want.y / m, thrust: Math.min(1, m / org.maxSpeed), boost: false };
+      }
+    } else if (this.autopilot) {
       if (steer.thrust > 0 && game.input.lastDevice !== 'mouse') this.stopTravel();
       else {
         const dx = this.autopilot.x - org.x;
         const dy = this.autopilot.y - org.y;
         const d = Math.hypot(dx, dy);
-        if (d < 45 && org.speed < 140) {
+        const plan = this.autopilot.ride;
+        if (plan && d < 70) {
+          // reached the thread: the current takes over
+          const path = this.pathFor(plan.thread, plan.from);
+          this.startRide(plan.thread, plan.from, Math.min(path.project(org.x, org.y).s, path.length - 200), true);
+        } else if (!plan && d < 45 && org.speed < 140) {
           const chapter = this.autopilot.chapter;
           this.stopTravel();
           this.docking = 1.5;
@@ -244,10 +406,32 @@ export class WorldScene implements Scene {
       const brake = Math.exp(-dt * 3.5);
       org.vx *= brake;
       org.vy *= brake;
+    } else if (this.rideCooldown === 0 && (this.scanFrame = (this.scanFrame + 1) % 2) === 0) {
+      this.catchByThread();
     }
-    org.maxSpeed = this.autopilot ? 520 : 260;
+    if (!this.ride) org.maxSpeed = this.autopilot ? 520 : 260;
     org.update(dt, steer);
-    cam.follow(org.x + org.vx * 0.35, org.y + org.vy * 0.35, dt, this.autopilot ? 4 : 2.6);
+    const lead = this.ride ? 0.5 : 0.35;
+    cam.follow(org.x + org.vx * lead, org.y + org.vy * lead, dt, this.autopilot || this.ride ? 4 : 2.6);
+
+    if (this.ride) {
+      for (const index of this.ride.view.update(dt, cam, org, this.ride.current.s)) {
+        this.ride.caught.push(index);
+        audio.pluck(this.ride.caught.length - 1);
+      }
+    }
+    for (const v of this.fadingRides) v.update(dt, cam, org, Infinity);
+    this.fadingRides = this.fadingRides.filter((v) => {
+      if (!v.finished) return true;
+      v.destroy();
+      return false;
+    });
+    // the verse card stays while the organism lingers near the passage
+    const reveal = store.get().reveal;
+    if (reveal && !this.ride) {
+      const p = this.model.position(reveal.chapter);
+      if (Math.hypot(p.x - org.x, p.y - org.y) > 420) store.set({ reveal: null });
+    }
 
     const view = cam.view(260);
     const zoom = cam.zoom;
@@ -346,19 +530,29 @@ export class WorldScene implements Scene {
 
   /** Control point for a gently curved thread between two nodes. */
   private curve(t: Thread) {
-    const a = this.model.position(t.a);
-    const b = this.model.position(t.b);
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const bend = (hash(t.a * 31 + t.b) - 0.5) * 0.5;
-    return { a, b, c: { x: mx - dy * bend, y: my + dx * bend } };
+    return threadCurve(this.model.position(t.a), this.model.position(t.b), t.a * 31 + t.b);
   }
 
   private bezier(a: { x: number; y: number }, c: { x: number; y: number }, b: { x: number; y: number }, k: number) {
-    const u = 1 - k;
-    return { x: u * u * a.x + 2 * u * k * c.x + k * k * b.x, y: u * u * a.y + 2 * u * k * c.y + k * k * b.y };
+    return bezier(a, c, b, k);
+  }
+
+  /** Gliding along a thread lets its current catch the organism. */
+  private catchByThread() {
+    const org = this.game.organism;
+    if (!this.game.input.enabled || org.speed < 90) return;
+    for (const t of this.model.threads) {
+      if (t.born >= 0 && this.time - t.born < 2.4) continue;
+      const path = this.pathFor(t, t.a);
+      const box = path.bounds(40);
+      if (org.x < box.x0 || org.x > box.x1 || org.y < box.y0 || org.y > box.y1) continue;
+      const hit = catchCurrent(path, org, { x: org.vx, y: org.vy }, t.kind === 'hint');
+      if (!hit) continue;
+      const from = hit.dir === 1 ? t.a : t.b;
+      if (!this.rideable(t, from)) continue;
+      this.startRide(t, from, hit.s, false);
+      return;
+    }
   }
 
   private drawThreads(far: boolean) {
@@ -379,7 +573,8 @@ export class WorldScene implements Scene {
       const color = t.ot ? OT_THREAD : mixColor(na?.color ?? 0x5ce1e6, 0x7fe9ff, 0.4);
       const grow = t.born < 0 ? 1 : Math.min(1, (this.time - t.born) / 2.4);
       const strength = Math.min(1, 0.35 + Math.log2(1 + t.votes) / 8);
-      const hovered = this.hovered === t;
+      const riding = this.ride?.thread.id === t.id;
+      const hovered = this.hovered === t || riding;
       const px = 1 / zoom;
       const width = t.kind === 'known' ? (1.6 + strength * 1.6) * px : (0.9 + strength) * px;
       const alpha = t.kind === 'known' ? 0.35 + strength * 0.35 : 0.12 + strength * 0.14;
@@ -519,7 +714,10 @@ export class WorldScene implements Scene {
         bestD = d;
       }
     }
-    const chosen = best ?? (this.focusChapter !== null && this.autopilot ? this.model.nodes.get(this.focusChapter) ?? null : null);
+    // on the way somewhere the card belongs to the destination, not to the lights passing by
+    const heading = this.ride?.to ?? this.autopilot?.chapter;
+    const destination = heading !== undefined ? (this.model.nodes.get(heading) ?? null) : null;
+    const chosen = destination ?? best;
     this.focusChapter = chosen?.chapter ?? null;
     const prev = store.get().focus;
     if (!chosen) {
@@ -530,7 +728,8 @@ export class WorldScene implements Scene {
     const s = this.game.camera.toScreen(chosen.x, chosen.y);
     focusAnchor.x = s.x;
     focusAnchor.y = s.y;
-    focusAnchor.visible = true;
+    // on a ride the words have the screen; the card shows once the destination comes into view
+    focusAnchor.visible = !this.ride || this.game.camera.sees(chosen.x, chosen.y, -40);
     const near = best === chosen;
     if (!prev || prev.chapter !== chosen.chapter || prev.near !== near || prev.completed !== chosen.completed || prev.kind !== chosen.kind) {
       store.set({ focus: this.describe(chosen, near) });
@@ -650,6 +849,8 @@ export class WorldScene implements Scene {
   }
 
   destroy() {
+    this.endRide(false);
+    for (const v of this.fadingRides) v.destroy();
     this.overlay.destroy({ children: true });
     this.root.destroy({ children: true });
   }
