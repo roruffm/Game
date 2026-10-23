@@ -84,6 +84,7 @@ let pending: SaveData | null = null;
 
 function flush() {
   window.clearTimeout(timer);
+  timer = undefined;
   if (!pending) return;
   try {
     localStorage.setItem(KEY, JSON.stringify(pending));
@@ -95,9 +96,10 @@ function flush() {
 
 export function persist(data: SaveData, immediate = false) {
   pending = data;
-  window.clearTimeout(timer);
   if (immediate) flush();
-  else timer = window.setTimeout(flush, 400);
+  // at most one write every 400 ms; a stream of changes (a word eaten every moment) must not
+  // put the write off for good
+  else if (timer === undefined) timer = window.setTimeout(flush, 400);
 }
 
 // closing the tab or reloading right after a discovery must not lose it
@@ -110,6 +112,7 @@ if (typeof window !== 'undefined') {
 
 export function clearSave() {
   window.clearTimeout(timer);
+  timer = undefined;
   pending = null;
   try {
     localStorage.removeItem(KEY);
