@@ -180,12 +180,21 @@ export abstract class EncounterScene implements Scene {
     // the verse shown until now has been read: its words leave as food before the next one rises
     thoughtControl.ripen();
     const beat = { ...next, seq: ++this.seq };
+    this.quiet = false;
     this.beats = [...this.beats, beat].slice(-4);
     this.shownAt = this.t;
     // the verse unfolds line by line; it stays until it can have been read calmly
     this.hold = readingHold(beat.text);
     this.publish({});
     audio.chime('beat');
+  }
+
+  private quiet = false;
+
+  /** Lets the verse beside the organism fade until the next one is shown. */
+  protected hush() {
+    this.quiet = true;
+    this.publish({});
   }
 
   /** True while verses are still waiting to be shown. */
@@ -218,6 +227,7 @@ export abstract class EncounterScene implements Scene {
         beats: this.beats,
         hint: patch.hint !== undefined ? patch.hint : (prev?.hint ?? null),
         done: patch.done ?? prev?.done ?? false,
+        quiet: this.quiet,
       },
     });
   }

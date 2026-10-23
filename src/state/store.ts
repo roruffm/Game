@@ -39,6 +39,8 @@ export interface EncounterUi {
   beats: Beat[];
   hint: string | null;
   done: boolean;
+  /** No verse beside the organism for now (e.g. while the words of a verse are being found). */
+  quiet?: boolean;
 }
 
 /** The verse a ride of light flows into, assembled from the words caught on the way. */

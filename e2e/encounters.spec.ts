@@ -6,6 +6,14 @@ type Detail = Record<string, number>;
 // what each encounter must have shown along the way, besides its verses
 const cases = [
   {
+    id: 'saemann',
+    title: 'Vom Sämann',
+    key: 'die das Wort hören und behalten',
+    last: 'LUK 8:15',
+    // all the way down: seeds caught, fruit taken in, and the last verse made whole again
+    scenes: (d: Detail) => d.deepest === 5 && d.caught > 0 && d.fruit > 0 && d.recalled === 6,
+  },
+  {
     id: 'storm',
     title: 'Jesus stillt den Sturm',
     key: 'Wer ist der?',
@@ -43,7 +51,8 @@ for (const c of cases) {
     await expect(page.locator('.encounter h2')).toHaveText(c.title);
 
     const end = await playEncounter(page, 540_000);
-    expect(end.encounter?.ui.phase).toBe(3);
+    // the dive has six layers, the others four phases
+    expect(end.encounter?.ui.phase).toBe(c.id === 'saemann' ? 5 : 3);
     expect(c.scenes(end.encounter?.detail ?? {}), JSON.stringify(end.encounter?.detail)).toBe(true);
 
     // understand: key verse, whole text, an optional question

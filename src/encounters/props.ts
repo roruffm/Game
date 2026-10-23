@@ -669,3 +669,131 @@ export class Vision {
     return this.age < this.hold + 2.5;
   }
 }
+
+/**
+ * A bird of light: a small bright body with two wings that beat as it flies. It circles,
+ * dives for what lies on the ground, and shies away from someone rushing at it.
+ */
+export class Bird {
+  readonly root = new Container();
+  x: number;
+  y: number;
+  vx = 0;
+  vy = 0;
+  /** Where it dives to (null: it circles round `home`). */
+  target: { x: number; y: number } | null = null;
+  home: { x: number; y: number };
+  private wings: Sprite[];
+  private body: Sprite;
+  private angle = Math.random() * Math.PI * 2;
+  private radius = rnd(120, 220);
+  private time = Math.random() * 9;
+
+  constructor(x: number, y: number, color = 0xe8f1ff) {
+    const t = textures();
+    this.x = x;
+    this.y = y;
+    this.home = { x, y };
+    light(t.glow, 0.45, color, 0.25, this.root);
+    this.wings = [0, 1].map(() => {
+      const s = light(t.leaf, 0.18, color, 0.8, this.root);
+      s.anchor.set(0.04, 0.5);
+      return s;
+    });
+    this.body = light(t.core, 0.16, 0xffffff, 0.95, this.root);
+    this.body.scale.set(0.2, 0.12);
+    this.root.scale.set(1.7);
+  }
+
+  /** `flee`: a point it keeps away from, and how close it lets it come. */
+  update(dt: number, flee: { x: number; y: number; r: number } | null = null) {
+    this.time += dt;
+    let tx: number;
+    let ty: number;
+    let speed: number;
+    if (this.target) {
+      tx = this.target.x;
+      ty = this.target.y;
+      speed = 300;
+    } else {
+      this.angle += dt * 0.9;
+      tx = this.home.x + Math.cos(this.angle) * this.radius;
+      ty = this.home.y + Math.sin(this.angle) * this.radius * 0.6;
+      speed = 160;
+    }
+    const dx = tx - this.x;
+    const dy = ty - this.y;
+    const d = Math.hypot(dx, dy) || 1;
+    let ax = ((dx / d) * speed - this.vx) * 2.2;
+    let ay = ((dy / d) * speed - this.vy) * 2.2;
+    if (flee) {
+      const fx = this.x - flee.x;
+      const fy = this.y - flee.y;
+      const fd = Math.hypot(fx, fy) || 1;
+      if (fd < flee.r) {
+        ax += (fx / fd) * 2400 * (1 - fd / flee.r);
+        ay += (fy / fd) * 2400 * (1 - fd / flee.r);
+      }
+    }
+    this.vx += ax * dt;
+    this.vy += ay * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    const heading = Math.atan2(this.vy, this.vx);
+    const beat = Math.sin(this.time * (this.target ? 16 : 9)) * 0.7;
+    this.root.position.set(this.x, this.y);
+    this.body.rotation = heading;
+    this.wings.forEach((w, i) => {
+      const side = i === 0 ? 1 : -1;
+      w.rotation = heading + Math.PI + side * (Math.PI / 2 - 0.5 + beat * 0.6);
+      w.scale.set(0.2 * (0.7 + 0.3 * Math.abs(Math.cos(beat))), 0.1);
+    });
+  }
+}
+
+/**
+ * A light that leads down into the next layer (warm, its motes spiralling inwards) or back up
+ * (cool, its motes rising outwards), as in flOw.
+ */
+export class DepthLight {
+  readonly root = new Container();
+  shown = 0;
+  private motes: Sprite[] = [];
+  private halo: Sprite;
+  private time = 0;
+
+  constructor(
+    public x: number,
+    public y: number,
+    readonly kind: 'down' | 'up',
+  ) {
+    const t = textures();
+    const color = kind === 'down' ? 0xff9a5a : 0x7fd8ff;
+    this.halo = light(t.glow, 1.1, color, 0.35, this.root);
+    light(t.core, 0.3, mixColor(color, 0xffffff, 0.5), 0.95, this.root);
+    for (let i = 0; i < 10; i++) this.motes.push(light(t.dot, 0.6, color, 0.8, this.root));
+    this.root.position.set(x, y);
+    this.root.alpha = 0;
+  }
+
+  /** True when something at (x, y) touches it. */
+  touches(x: number, y: number, r = 48) {
+    return this.shown > 0.6 && Math.hypot(x - this.x, y - this.y) < r;
+  }
+
+  update(dt: number) {
+    this.time += dt;
+    this.shown = Math.min(1, this.shown + dt * 0.8);
+    this.root.alpha = this.shown;
+    this.root.position.set(this.x, this.y + Math.sin(this.time * 1.2) * 4);
+    this.halo.scale.set(1.1 + Math.sin(this.time * 2) * 0.12);
+    this.motes.forEach((m, i) => {
+      // down: motes spiral inwards; up: they rise outwards
+      const k = (this.time * 0.35 + i / this.motes.length) % 1;
+      const r = this.kind === 'down' ? 70 * (1 - k) : 20 + 60 * k;
+      const a = i * 2.4 + this.time * (this.kind === 'down' ? 1.6 : -1.2);
+      m.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.8 - (this.kind === 'up' ? k * 20 : 0));
+      m.alpha = Math.sin(k * Math.PI) * 0.9;
+    });
+  }
+}

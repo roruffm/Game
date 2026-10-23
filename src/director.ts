@@ -10,6 +10,7 @@ import { EmmausEncounter } from './encounters/emmaus';
 import type { EncounterScene } from './encounters/kit';
 import { ProdigalEncounter } from './encounters/prodigal';
 import { StormEncounter } from './encounters/storm';
+import { SowerEncounter } from './encounters/sower';
 import type { Morsel } from './engine/food';
 import { Game } from './engine/game';
 import { STAGES } from './engine/growth';
@@ -42,6 +43,7 @@ const fetchJson = async (path: string) => {
 };
 
 const MODULES: Record<EncounterId, new (api: ConstructorParameters<typeof StormEncounter>[0]) => EncounterScene> = {
+  saemann: SowerEncounter,
   storm: StormEncounter,
   prodigal: ProdigalEncounter,
   emmaus: EmmausEncounter,
@@ -121,7 +123,7 @@ export class Director {
     }
   }
 
-  /** Near the heart of the Gospels, a little away from the three encounters. */
+  /** Near the heart of the Gospels, a little away from the three narrated encounters. */
   private startPoint() {
     const pts = (['storm', 'prodigal', 'emmaus'] as EncounterId[]).map((id) => this.model.position(this.model.encounterChapter(id)));
     const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
@@ -142,7 +144,7 @@ export class Director {
     this.game.input.enabled = true;
     store.set({ phase: 'world' });
     if (!this.save.discoveries.length) {
-      window.setTimeout(() => toast('Gleite durch den Wortstrom.', 'Maus, Pfeiltasten oder Wischen bewegen dich. Drei helle Lichtknoten warten auf dich.', 7000), 600);
+      window.setTimeout(() => toast('Gleite durch den Wortstrom.', 'Maus, Pfeiltasten oder Wischen bewegen dich. Vier helle Lichtknoten warten auf dich.', 7000), 600);
     }
   }
 
