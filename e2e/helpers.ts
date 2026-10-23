@@ -6,7 +6,13 @@ export interface GameState {
   /** Words floating as food. */
   food: number;
   camera: { x: number; y: number; zoom: number };
-  encounter: { id: string; objective: { x: number; y: number } | null; ui: { phase: number; done: boolean; beats: { ref: string; kind: string }[] } } | null;
+  encounter: {
+    id: string;
+    objective: { x: number; y: number } | null;
+    ui: { phase: number; done: boolean; beats: { ref: string; kind: string }[] };
+    /** What has happened in the scene (see EncounterScene.detail). */
+    detail: Record<string, number>;
+  } | null;
   nodes: { chapter: number; kind: string; title: string; x: number; y: number; completed: boolean }[];
   threads: { a: number; b: number; kind: string; votes: number; links: number }[];
   stats: { discovered: number; threads: number; connections: number; encounters: number; ot: number };

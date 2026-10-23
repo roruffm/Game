@@ -117,6 +117,18 @@ export abstract class EncounterScene implements Scene {
     organismAnchor.avoid = goal && Math.abs(goal.x - this.org.x) > 60 ? Math.sign(goal.x - this.org.x) : 0;
   }
 
+  private zoomK = 1;
+
+  /**
+   * Brings the camera closer (k > 1) or further away (k < 1) for a scene, smoothly and relative
+   * to the encounter's distance, so a zoom the player chose is kept.
+   */
+  protected closeUp(k: number, dt: number) {
+    const next = this.zoomK + (k - this.zoomK) * (1 - Math.exp(-dt * 0.8));
+    this.game.camera.targetZoom *= next / this.zoomK;
+    this.zoomK = next;
+  }
+
   /** Runs `run` after `seconds`. */
   protected later(seconds: number, run: () => void) {
     this.schedule.push({ at: this.t + seconds, run });
@@ -136,7 +148,23 @@ export abstract class EncounterScene implements Scene {
     const ch = this.api.bible.ref(this.api.bible.range(this.api.info.range).start);
     const book = this.api.bible.book(this.api.bible.range(this.api.info.range).start);
     const label = `${book.name} ${ch.c},${from}${to > from ? `–${to}` : ''}`;
-    this.pushBeat({ ref: `${book.code} ${ch.c}:${from}${to > from ? `-${to}` : ''}`, label, text: verses.join(' '), kind: 'bibel' });
+    const beat: Beat = { ref: `${book.code} ${ch.c}:${from}${to > from ? `-${to}` : ''}`, label, text: verses.join(' '), kind: 'bibel' };
+    this.verses.set(beat, [from, to]);
+    this.pushBeat(beat);
+  }
+
+  /** The verses each beat of `say` carries, so the scene can wait until they are shown. */
+  private verses = new WeakMap<Beat, [number, number]>();
+  private heardVerses = new Set<number>();
+
+  /** True once verse `n` of the chapter has been shown (not only queued). */
+  protected heard(n: number) {
+    return this.heardVerses.has(n);
+  }
+
+  /** True when no verse is waiting and the one shown has had its time to be read. */
+  protected get settled() {
+    return this.queue.length === 0 && this.t - this.shownAt >= this.hold;
   }
 
   protected pushBeat(beat: Beat) {
@@ -147,6 +175,8 @@ export abstract class EncounterScene implements Scene {
   private showNext() {
     const next = this.queue.shift();
     if (!next) return;
+    const range = this.verses.get(next);
+    if (range) for (let v = range[0]; v <= range[1]; v++) this.heardVerses.add(v);
     // the verse shown until now has been read: its words leave as food before the next one rises
     thoughtControl.ripen();
     const beat = { ...next, seq: ++this.seq };
@@ -194,6 +224,11 @@ export abstract class EncounterScene implements Scene {
 
   /** For tests and accessibility: where the player should go next, if anywhere. */
   abstract objective(): { x: number; y: number } | null;
+
+  /** For tests: what has happened in the scene so far (e.g. how much was spent or eaten). */
+  detail(): Record<string, number> {
+    return {};
+  }
 
   destroy() {
     this.root.destroy({ children: true });

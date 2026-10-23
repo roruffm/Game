@@ -581,7 +581,9 @@ export class Director {
         },
         food: this.game.food.count,
         camera: { x: this.game.camera.x, y: this.game.camera.y, zoom: this.game.camera.zoom },
-        encounter: this.encounter ? { id: this.encounter.id, objective: this.encounter.scene.objective(), ui: store.get().encounter } : null,
+        encounter: this.encounter
+          ? { id: this.encounter.id, objective: this.encounter.scene.objective(), ui: store.get().encounter, detail: this.encounter.scene.detail() }
+          : null,
         nodes: [...this.model.nodes.values()].map((n) => ({ chapter: n.chapter, kind: n.kind, title: n.title, x: n.x, y: n.y, completed: n.completed })),
         threads: this.model.threads.map((t) => ({ a: t.a, b: t.b, kind: t.kind, votes: t.votes, links: t.links.length })),
         ride: this.world.rideState(),
