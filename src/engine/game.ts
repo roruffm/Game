@@ -1,8 +1,9 @@
-// Game Engine host: the Pixi application, camera, input, the shared organism and the
-// background. Scenes (the Wortstrom and the encounters) plug into it.
+// Game Engine host: the Pixi application, camera, input, the shared organism, the words it
+// feeds on and the background. Scenes (the Wortstrom and the encounters) plug into it.
 
 import { Application, Container } from 'pixi.js';
 import { Camera } from './camera';
+import { FoodField } from './food';
 import { Input } from './input';
 import { Organism } from './organism';
 
@@ -27,6 +28,7 @@ export interface Quality {
 export class Game {
   readonly camera = new Camera();
   readonly organism = new Organism();
+  readonly food = new FoodField();
   readonly input: Input;
   readonly worldLayer = new Container();
   readonly screenLayer = new Container();
@@ -57,6 +59,7 @@ export class Game {
     this.nebula.className = 'nebula';
     host.append(sky, this.nebula, app.canvas);
     app.stage.addChild(this.worldLayer, this.screenLayer);
+    this.screenLayer.addChild(this.food.words);
     this.resize();
     window.addEventListener('resize', () => this.resize());
     app.ticker.add((ticker) => this.tick(Math.min(ticker.deltaMS, 50) / 1000));
@@ -87,8 +90,10 @@ export class Game {
     }
     this.scene = scene;
     this.input.reset();
+    // words left floating belong to the place they were read in
+    this.food.clear();
     scene.enter?.();
-    this.worldLayer.addChild(scene.root);
+    this.worldLayer.addChild(scene.root, this.food.glows);
     this.input.onTap = (x, y) => this.scene?.tap?.(x, y);
     this.input.onHover = (x, y) => this.scene?.hover?.(x, y);
     this.input.onZoom = (f) => this.camera.zoomBy(f);
@@ -109,6 +114,7 @@ export class Game {
     this.time += dt;
     this.scene?.update(dt, this.time);
     this.camera.apply(this.worldLayer);
+    this.food.update(dt, this.organism, this.camera, this.quality.reducedMotion);
     this.drawNebula();
     this.onFrame();
   }

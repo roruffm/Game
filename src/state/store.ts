@@ -131,3 +131,9 @@ export const focusAnchor = { x: 0, y: 0, visible: false };
  * should keep free (1: the right, -1: the left), e.g. where the player is heading.
  */
 export const organismAnchor = { x: 0, y: 0, avoid: 0 };
+
+/**
+ * The thought beside the organism, as the game can reach it: `ripen` lets the verse shown now
+ * turn into food at once (e.g. right before the next verse replaces it). Set by the thought.
+ */
+export const thoughtControl: { ripen: () => void } = { ripen: () => {} };

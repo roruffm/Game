@@ -1,10 +1,11 @@
 // Verses as thoughts: they rise beside the organism, at its eye level, line by line, drift
 // along with it like a small cloud and dissolve upwards when the next one comes. No frame and
-// no fixed place at the edge of the screen.
+// no fixed place at the edge of the screen. Once a verse has been read, its words leave the
+// thought and float out into the world as food for the organism.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { breakLines, lineStarts } from '../state/reading';
-import { organismAnchor } from '../state/store';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { breakLines, lineStarts, ripeAfter } from '../state/reading';
+import { organismAnchor, thoughtControl } from '../state/store';
 
 export interface ThoughtLayout {
   /** Too narrow for text beside the organism: the thought rises above it instead. */
@@ -42,29 +43,72 @@ export function useLines(words: string[], layout: ThoughtLayout) {
   }, [words, layout]);
 }
 
+/** A word leaving the thought: where it stood on the screen, and how large it was. */
+export interface SpilledWord {
+  word: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
 export interface ThoughtItem {
   key: string;
   /** Plain text of each line, for the reading pace. */
   texts: string[];
-  /** How each line is drawn. */
+  /** How each line is drawn; words that can become food are `.w` spans (`.w.caught`: already taken in). */
   lines: ReactNode[];
   head?: ReactNode;
   /** Shown once every line is there: where the words come from, and what can be done next. */
   foot?: ReactNode;
+  /** Scripture only: called once the verse has been read, with the words that leave it. */
+  ripe?: (words: SpilledWord[]) => void;
 }
 
 const calm = () => document.body.classList.contains('reduce-motion');
 
-function Unfolding({ item, leaving = false }: { item: ThoughtItem; leaving?: boolean }) {
+/**
+ * `ripened` holds the keys of this cloud's thoughts whose words have left, so the copy that
+ * dissolves after them stays empty.
+ */
+function Unfolding({ item, ripened, leaving = false }: { item: ThoughtItem; ripened: Set<string>; leaving?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(() => (leaving || calm() ? item.lines.length : 0));
+  const [ripe, setRipe] = useState(() => ripened.has(item.key));
+  const feed = item.ripe;
+  const born = useRef(performance.now());
+  const ripen = useCallback(() => {
+    const el = ref.current;
+    if (!el || !feed || ripened.has(item.key)) return;
+    const words: SpilledWord[] = [];
+    for (const span of el.querySelectorAll<HTMLElement>('.tl .w:not(.caught)')) {
+      const word = (span.textContent ?? '').replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+      const r = span.getBoundingClientRect();
+      if (!word || !r.width) continue;
+      words.push({ word, x: r.left + r.width / 2, y: r.top + r.height / 2, size: parseFloat(getComputedStyle(span).fontSize) || 18 });
+    }
+    ripened.add(item.key);
+    setRipe(true);
+    feed(words);
+  }, [feed, item.key, ripened]);
   useEffect(() => {
     if (leaving || calm()) return;
     const timers = lineStarts(item.texts).map((t, i) => window.setTimeout(() => setShown((s) => Math.max(s, i + 1)), t * 1000));
     return () => timers.forEach((t) => window.clearTimeout(t));
     // the lines belong to the key; a re-render of the same thought must not restart them
   }, [item.key, leaving]);
+  // read: the words leave as food
+  useEffect(() => {
+    if (leaving || !feed) return;
+    thoughtControl.ripen = ripen;
+    // timed from when the thought first appeared, like its lines
+    const t = window.setTimeout(ripen, Math.max(0, ripeAfter(item.texts) * 1000 - (performance.now() - born.current)));
+    return () => {
+      window.clearTimeout(t);
+      if (thoughtControl.ripen === ripen) thoughtControl.ripen = () => {};
+    };
+  }, [item.texts, leaving, ripen]);
   return (
-    <div className={`thought-body${leaving ? ' leaving' : ''}`} aria-hidden="true">
+    <div ref={ref} className={`thought-body${leaving ? ' leaving' : ''}${ripe ? ' ripe' : ''}`} aria-hidden="true">
       {item.head}
       {item.lines.slice(0, shown).map((line, i) => (
         <div className="tl" key={i}>
@@ -86,6 +130,7 @@ function useFollow(ref: React.RefObject<HTMLDivElement | null>, narrow: boolean)
     let raf = 0;
     let cx = NaN;
     let cy = NaN;
+    let lastH = NaN;
     let side = 1;
     let pending = 0;
     let last = performance.now();
@@ -98,6 +143,10 @@ function useFollow(ref: React.RefObject<HTMLDivElement | null>, narrow: boolean)
         const H = window.innerHeight;
         const w = el.offsetWidth;
         const h = el.offsetHeight;
+        // the bottom stays where it is when lines come or go: new ones lift the earlier ones,
+        // and words leaving as food do not make the rest jump
+        if (h !== lastH && !Number.isNaN(lastH)) cy -= h - lastH;
+        lastH = h;
         const a = organismAnchor;
         const gap = 54;
         const fitsRight = a.x + gap + w <= W - 12;
@@ -143,6 +192,7 @@ function useFollow(ref: React.RefObject<HTMLDivElement | null>, narrow: boolean)
 export function Thought({ item, layout, className = '', live }: { item: ThoughtItem; layout: ThoughtLayout; className?: string; live: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useFollow(ref, layout.narrow);
+  const ripened = useRef(new Set<string>()).current;
   const [previous, setPrevious] = useState<ThoughtItem | null>(null);
   const current = useRef(item);
   useEffect(() => {
@@ -157,8 +207,8 @@ export function Thought({ item, layout, className = '', live }: { item: ThoughtI
   }, [item]);
   return (
     <div ref={ref} className={`thought ${className}`} style={{ width: layout.width, fontSize: layout.fontSize }}>
-      {previous && <Unfolding key={`${previous.key}:leaving`} item={previous} leaving />}
-      <Unfolding key={item.key} item={item} />
+      {previous && <Unfolding key={`${previous.key}:leaving`} item={previous} ripened={ripened} leaving />}
+      <Unfolding key={item.key} item={item} ripened={ripened} />
       <p className="sr-only" role="status" aria-live="polite">
         {live}
       </p>

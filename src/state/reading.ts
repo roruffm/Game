@@ -22,6 +22,17 @@ export function readingHold(text: string): number {
 }
 
 /**
+ * Seconds after which a verse, unfolding line by line, has been read and may become food: the
+ * last line has had its time, and a moment more.
+ */
+export function ripeAfter(lines: string[]): number {
+  if (!lines.length) return 0;
+  const starts = lineStarts(lines);
+  const last = lines[lines.length - 1];
+  return starts[starts.length - 1] + 0.35 + last.length / 24 + 2.2;
+}
+
+/**
  * Breaks words into lines no wider than `maxWidth`, measured by `measure` (canvas text width
  * in the browser). Returns the indices of the words on each line.
  */

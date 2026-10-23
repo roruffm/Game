@@ -7,6 +7,8 @@ export interface Textures {
   core: Texture;
   dot: Texture;
   ring: Texture;
+  /** A soft, translucent leaf of light (base at the left edge): fins, petals and wings. */
+  leaf: Texture;
 }
 
 function paint(size: number, draw: (ctx: CanvasRenderingContext2D, size: number) => void): Texture {
@@ -65,6 +67,28 @@ export function textures(): Textures {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
   });
-  cache = { glow, core, dot, ring };
+  const leaf = paint(128, (ctx, size) => {
+    const m = size / 2;
+    ctx.filter = 'blur(3px)';
+    ctx.beginPath();
+    ctx.moveTo(6, m);
+    ctx.bezierCurveTo(size * 0.3, m - size * 0.36, size * 0.75, m - size * 0.2, size - 6, m);
+    ctx.bezierCurveTo(size * 0.75, m + size * 0.2, size * 0.3, m + size * 0.36, 6, m);
+    const g = ctx.createLinearGradient(0, 0, size, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0.08)');
+    ctx.fillStyle = g;
+    ctx.fill();
+    // a fine vein of light along the middle
+    ctx.filter = 'blur(1px)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(6, m);
+    ctx.lineTo(size * 0.8, m);
+    ctx.stroke();
+  });
+  cache = { glow, core, dot, ring, leaf };
   return cache;
 }

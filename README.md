@@ -44,12 +44,42 @@ nächste Vers kommt, löst sich der vorige nach oben auf. Auf breiten Bildschirm
 auf der Seite, zu der der Organismus gerade nicht unterwegs ist; auf schmalen steigt er über ihm
 auf. Unter jedem Vers steht, woher er kommt (Lutherbibel 1912, bei Querverweisen der Datensatz).
 
-### Der Organismus wächst mit
+### Gelesene Worte werden zu Speise
 
-Was du entdeckst, bleibt am Organismus sichtbar: kleine Lichter entlang des Körpers in den Farben
-der Bücher, Stellen aus dem Alten Testament mit goldenem Schimmer, und für jede Begegnung ein
-Lichtring um den Kopf. Mit mehr Entdeckungen wird der Körper länger. Das zeigt, was gefunden wurde,
-es ist kein Punktestand.
+Wie die Wesen in *flOw* nimmt der Organismus Nahrung auf: die Worte der Verse. Erst wird gelesen.
+Hat ein Bibelvers lange genug neben dem Organismus gestanden, um in Ruhe gelesen zu werden (oder
+kommt der nächste), lösen sich seine Wörter an Ort und Stelle aus dem Gedanken. Sie treiben als
+kleine Lichter mit ihrem Wort in der Welt, ziehen sanft zum Organismus hin und werden aufgenommen,
+wenn er durch sie hindurchschwimmt. Jedes Wort schickt einen Lichtpuls den Körper entlang, dazu
+klingt ein sehr leiser Ton in der Tonart der Musik. Die Quellenangabe bleibt stehen, bis der nächste
+Vers kommt. Nur Bibeltext wird zu Speise, Hinweise nicht; Worte, die auf einem Lichtfaden schon
+eingefangen wurden, zählen als aufgenommen. Wer nicht hinterherschwimmt, verliert nichts: Die Worte
+treiben langsam heran oder verblassen nach etwa einer Minute.
+
+Beim ersten Wort antwortet die Schrift selbst: „Dein Wort ward mir Speise, da ich's empfing; und
+dein Wort ist meines Herzens Freude und Trost …“ (Jeremia 15,16a, Lutherbibel 1912).
+
+### Der Organismus wächst
+
+Mit jedem aufgenommenen Wort wird der Organismus etwas länger und größer, und in Stufen entfaltet
+er neue Formen, jeweils allmählich über einige Wörter hinweg (`src/engine/growth.ts`, ohne Grafik
+testbar):
+
+| ab Wörtern | neue Form |
+| --- | --- |
+| 40 | Flossen entlang des Körpers |
+| 120 | ein Schweif aus Lichtfäden |
+| 250 | eine Krone aus Licht um den Kopf |
+| 420 | wandernde Leuchtmuster |
+| 650 | zwei Schwingen aus Licht |
+
+Eine Begegnung, gelesen und aufgenommen, bringt etwa 150 bis 500 Wörter. Angezeigt wird nur die
+Gestalt, keine Zahl: Es ist kein Punktestand, und es gibt nichts zu verlieren. Spielstände von vor
+dieser Änderung wachsen so weit, wie sie bis dahin gelesen hätten.
+
+Was du entdeckst, bleibt am Organismus ebenfalls sichtbar: kleine Lichter entlang des Körpers in den
+Farben der Bücher, Stellen aus dem Alten Testament mit goldenem Schimmer, und für jede Begegnung ein
+Lichtring um den Kopf.
 
 Eine **Resonanz** (Leertaste oder goldener Knopf) sendet eine Lichtwelle aus. Wo sie an
 Querverweisen aus deinen Entdeckungen vorbeikommt, die die Welt noch nicht zeigt (jede Entdeckung
@@ -138,14 +168,16 @@ src/
   bible/        Bible Data Service: Verszählung, Stellen parsen/formatieren, Text laden
   xref/         Cross-Reference Engine: Verweise, Gruppierung nach Kapiteln, Worthinweise
   content/      Redaktionelles: Begegnungen, Themen, Erklärungen (vom Datensatz getrennt)
-  engine/       Game Engine: Pixi-App, Kamera, Eingabe, Organismus, Partikel, Rauschen, Texturen
+  engine/       Game Engine: Pixi-App, Kamera, Eingabe, Organismus und sein Wachstum (growth.ts),
+                Worte als Speise (food.ts), Partikel, Rauschen, Texturen
   world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung),
                 ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung),
                 resonanceView.ts (die Resonanz-Welle)
   encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
   audio/        Audio Engine: Musikstücke je Situation mit Überblendung, Stimmungen färben sie (tracks.ts);
                 Ereignisklänge als leise Klaviertöne in der Tonart des laufenden Stücks; Wind im Sturm
-  state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse (reading.ts)
+  state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse und wann sie gelesen
+                sind (reading.ts)
   ui/           React-Oberfläche: HUD, Fokuskarte, Verse als Gedanken (Thought.tsx), Leser, Verbindungen,
                 Übersicht, Einstellungen
   director.ts   verbindet alles: Laden, Szenenwechsel, Entdecken, Panels
@@ -158,12 +190,14 @@ erscheinen über `say(von, bis)`, sie werden in Ruhe nacheinander gezeigt.
 ## Tests
 
 ```
-npm test           # Unit-Tests (Vitest): Daten, Bibel-Service, Querverweise, Weltmodell, Redaktion
+npm test           # Unit-Tests (Vitest): Daten, Bibel-Service, Querverweise, Weltmodell, Redaktion,
+                   # Lesetempo, Wachstum
 npm run test:e2e   # Browser-Tests (Playwright, Chromium) gegen den Build: npm run build vorher
 ```
 
 Die Browser-Tests spielen alle drei Begegnungen vollständig mit der Maus durch, prüfen Bewegung per
-Tastatur, Maus und Touch, Suche, Themen, Einstellungen, Speichern und Zurücksetzen, die
+Tastatur, Maus und Touch, Suche, Themen, Einstellungen, Speichern und Zurücksetzen, das Fressen
+gelesener Verse und das Wachsen des Organismus, die
 Kennzeichnung der drei Verbindungsebenen und das Verhalten auf einem Smartphone-Viewport. In der
 CI läuft WebGL in Software, daher die großzügigen Zeitlimits.
 

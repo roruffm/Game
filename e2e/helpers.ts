@@ -2,7 +2,9 @@ import { expect, type Page } from '@playwright/test';
 
 export interface GameState {
   phase: string;
-  organism: { x: number; y: number; carried: number };
+  organism: { x: number; y: number; carried: number; nourished: number; stage: number; segments: number };
+  /** Words floating as food. */
+  food: number;
   camera: { x: number; y: number; zoom: number };
   encounter: { id: string; objective: { x: number; y: number } | null; ui: { phase: number; done: boolean; beats: { ref: string; kind: string }[] } } | null;
   nodes: { chapter: number; kind: string; title: string; x: number; y: number; completed: boolean }[];

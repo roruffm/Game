@@ -10,7 +10,7 @@ import type { Game, Scene } from '../engine/game';
 import type { Steer } from '../engine/input';
 import { textures } from '../engine/textures';
 import { readingHold } from '../state/reading';
-import { organismAnchor, store, type Beat } from '../state/store';
+import { organismAnchor, store, thoughtControl, type Beat } from '../state/store';
 import type { CrossRefs } from '../xref/crossrefs';
 
 export interface EncounterApi {
@@ -147,6 +147,8 @@ export abstract class EncounterScene implements Scene {
   private showNext() {
     const next = this.queue.shift();
     if (!next) return;
+    // the verse shown until now has been read: its words leave as food before the next one rises
+    thoughtControl.ripen();
     const beat = { ...next, seq: ++this.seq };
     this.beats = [...this.beats, beat].slice(-4);
     this.shownAt = this.t;
