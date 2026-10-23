@@ -1,14 +1,49 @@
 // The light organism: a soft head, a trailing body of linked lights, small cilia that stream
 // back with the motion, and a fading trail. It glides with inertia and turns slowly, like
-// something floating in water rather than a cursor.
+// something floating in water rather than a cursor. What the player has discovered stays with
+// it: small lights along the body in the colours of the passages, and a ring of light around
+// the head for every encounter. They show what was found; they are not a score.
 
 import { Container, Particle, ParticleContainer, Sprite } from 'pixi.js';
 import type { Steer } from './input';
 import { textures } from './textures';
 
 const SEGMENTS = 9;
+/** The body grows by one segment for every few discoveries, up to this many. */
+const MAX_SEGMENTS = 15;
+const MAX_LIGHTS = 24;
 const CILIA = 16;
 const TRAIL = 90;
+const GOLD = 0xffd98a;
+
+/** Something the player discovered, as the organism carries it. */
+export interface Memory {
+  /** Stable per discovery, so a light keeps its place. */
+  key: string;
+  kind: 'nt' | 'ot' | 'encounter';
+  /** The colour of the passage's group of books, or of the encounter. */
+  color: number;
+}
+
+interface Light {
+  key: string;
+  s: Sprite;
+  kind: Memory['kind'];
+  color: number;
+  /** Which body segment it rests by. */
+  seg: number;
+  phase: number;
+  /** Seconds since it joined; new lights travel from the head to their place. */
+  age: number;
+}
+
+interface Wreath {
+  key: string;
+  s: Sprite;
+  color: number;
+  tilt: number;
+  age: number;
+}
 
 interface TrailBit {
   p: Particle;
@@ -35,18 +70,20 @@ export class Organism {
   private aura: Sprite;
   private head: Sprite;
   private heart: Sprite;
-  private body: { s: Sprite; x: number; y: number }[] = [];
+  private body: { s: Sprite; x: number; y: number; scale: number; alpha: number }[] = [];
   private cilia: { s: Sprite; phase: number; r: number }[] = [];
+  private lights: Light[] = [];
+  private wreaths: Wreath[] = [];
+  private memoryLayer = new Container();
   private trail: TrailBit[] = [];
   private emitClock = 0;
 
   constructor() {
     const t = textures();
     this.aura = this.sprite(t.glow, 1.5, 0.22);
-    for (let i = 0; i < SEGMENTS; i++) {
-      const s = this.sprite(t.glow, 0.42 - i * 0.03, 0.55 - i * 0.045);
-      this.body.push({ s, x: 0, y: 0 });
-    }
+    for (let i = 0; i < SEGMENTS; i++) this.body.push({ s: this.sprite(t.glow, 0.4, 0.5), x: 0, y: 0, scale: 0, alpha: 0 });
+    this.shapeBody();
+    this.root.addChild(this.memoryLayer);
     for (let i = 0; i < CILIA; i++) {
       this.cilia.push({ s: this.sprite(t.dot, 0.35, 0.8), phase: (i / CILIA) * Math.PI * 2, r: 11 + (i % 3) * 3 });
     }
@@ -72,6 +109,74 @@ export class Organism {
     s.blendMode = 'add';
     this.root.addChild(s);
     return s;
+  }
+
+  /** Tapers the body from head to tail, whatever its length. */
+  private shapeBody() {
+    const n = this.body.length;
+    this.body.forEach((b, i) => {
+      const k = i / (n - 1);
+      b.scale = 0.42 * (1 - 0.57 * k);
+      b.alpha = 0.5 * (1 - 0.65 * k);
+      b.s.scale.set(b.scale);
+    });
+  }
+
+  /**
+   * Shows what has been discovered. New memories join with a small arrival (unless `animate`
+   * is false, e.g. when a saved world is loaded); memories that are gone fade away.
+   */
+  setMemories(memories: Memory[], animate = true) {
+    const t = textures();
+    const passages = memories.filter((m) => m.kind !== 'encounter');
+    // a longer body for a fuller world
+    const wanted = Math.min(MAX_SEGMENTS, SEGMENTS + Math.floor(passages.length / 3));
+    while (this.body.length < wanted) {
+      const tail = this.body[this.body.length - 1];
+      const s = new Sprite(t.glow);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      this.root.addChildAt(s, this.root.getChildIndex(tail.s) + 1);
+      this.body.push({ s, x: tail.x, y: tail.y, scale: 0, alpha: 0 });
+    }
+    while (this.body.length > wanted && this.body.length > SEGMENTS) this.body.pop()!.s.destroy();
+    this.shapeBody();
+
+    const shown = passages.slice(-MAX_LIGHTS);
+    const keep = new Set(shown.map((m) => m.key));
+    this.lights = this.lights.filter((l) => {
+      if (keep.has(l.key)) return true;
+      l.s.destroy();
+      return false;
+    });
+    shown.forEach((m, i) => {
+      if (this.lights.some((l) => l.key === m.key)) return;
+      const s = new Sprite(t.glow);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      s.alpha = 0;
+      this.memoryLayer.addChild(s);
+      // spread along the body by the golden angle, so neighbours rarely share a segment
+      const seg = 1 + Math.floor(((i * 0.618) % 1) * (this.body.length - 1));
+      this.lights.push({ key: m.key, s, kind: m.kind, color: m.color, seg, phase: i * 2.39996, age: animate ? 0 : 99 });
+    });
+    this.lights.forEach((l) => (l.seg = Math.min(l.seg, this.body.length - 1)));
+
+    const encounters = memories.filter((m) => m.kind === 'encounter');
+    for (const m of encounters) {
+      if (this.wreaths.some((w) => w.key === m.key)) continue;
+      const s = new Sprite(t.ring);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      s.alpha = 0;
+      this.memoryLayer.addChild(s);
+      this.wreaths.push({ key: m.key, s, color: m.color, tilt: this.wreaths.length * 1.05 + 0.4, age: animate ? 0 : 99 });
+    }
+  }
+
+  /** How many passages and encounters the organism carries. */
+  get carried() {
+    return this.lights.length + this.wreaths.length;
   }
 
   place(x: number, y: number) {
@@ -146,10 +251,47 @@ export class Organism {
       b.x = px + (dx / d) * spacing + Math.cos(this.heading + Math.PI / 2) * wave * dt * 10;
       b.y = py + (dy / d) * spacing + Math.sin(this.heading + Math.PI / 2) * wave * dt * 10;
       b.s.position.set(b.x, b.y);
-      b.s.tint = i < 3 ? this.color : mixColor(this.color, this.accent, i / SEGMENTS);
-      b.s.alpha = (0.5 - i * 0.045) * (0.35 + 0.65 * v);
+      b.s.tint = i < 3 ? this.color : mixColor(this.color, this.accent, i / this.body.length);
+      b.s.alpha = b.alpha * (0.35 + 0.65 * v);
       px = b.x;
       py = b.y;
+    });
+
+    // the discovered passages, resting along the body
+    for (const l of this.lights) {
+      l.age += dt;
+      const seg = this.body[l.seg];
+      const a = l.phase + this.time * 0.9;
+      const r = 4 + (l.seg % 3) * 1.5;
+      let x = seg.x + Math.cos(a) * r;
+      let y = seg.y + Math.sin(a) * r;
+      const twinkle = l.kind === 'ot' ? 0.6 + 0.4 * Math.sin(this.time * 4.2 + l.phase) : 0.8 + 0.2 * Math.sin(this.time * 2 + l.phase);
+      let scale = 0.11 * (0.6 + 0.4 * v);
+      // a new light leaves the head and settles in its place
+      if (l.age < 1.4) {
+        const k = l.age / 1.4;
+        const e = 1 - Math.pow(1 - k, 3);
+        x = this.x + (x - this.x) * e;
+        y = this.y + (y - this.y) * e;
+        scale *= 1 + 2.4 * (1 - e);
+      }
+      l.s.position.set(x, y);
+      l.s.scale.set(scale);
+      l.s.tint = l.kind === 'ot' ? mixColor(l.color, GOLD, 0.55) : mixColor(l.color, 0xffffff, 0.25);
+      l.s.alpha = twinkle * (0.45 + 0.55 * v);
+    }
+
+    // one ring of light around the head for each encounter
+    this.wreaths.forEach((w, i) => {
+      w.age += dt;
+      const born = Math.min(1, w.age / 1.8);
+      const e = 1 - Math.pow(1 - born, 3);
+      const size = (0.42 + i * 0.12) * (0.6 + 0.4 * v) * (1 + (1 - e) * 1.6);
+      w.s.position.set(this.x, this.y);
+      w.s.rotation = w.tilt + Math.sin(this.time * 0.35 + i) * 0.5;
+      w.s.scale.set(size, size * (0.5 + 0.08 * Math.sin(this.time * 0.8 + i * 2)));
+      w.s.tint = w.color;
+      w.s.alpha = (0.32 + 0.1 * Math.sin(this.time * 1.3 + i)) * v * (born < 1 ? 0.5 + 1.5 * (1 - e) : 1);
     });
 
     // cilia orbit the head and stream backwards when moving

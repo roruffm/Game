@@ -3,16 +3,17 @@
 
 import { audio } from './audio/audio';
 import { Bible, type Range, type Versification } from './bible/bible';
-import { BOOKS } from './bible/books';
-import { encounterById, type EncounterId } from './content/encounters';
+import { BOOKS, GROUPS } from './bible/books';
+import { encounterById, ENCOUNTERS, type EncounterId } from './content/encounters';
 import { THEMES } from './content/themes';
 import { EmmausEncounter } from './encounters/emmaus';
 import type { EncounterScene } from './encounters/kit';
 import { ProdigalEncounter } from './encounters/prodigal';
 import { StormEncounter } from './encounters/storm';
 import { Game } from './engine/game';
+import type { Memory } from './engine/organism';
 import { clearSave, loadSave, persist, type Discovery, type SaveData, type Settings } from './state/save';
-import { store, toast, type Panel } from './state/store';
+import { organismAnchor, store, toast, type Panel } from './state/store';
 import type { GraphData, Thread } from './world/model';
 import { WorldModel } from './world/model';
 import type { RideInfo } from './world/ride';
@@ -52,6 +53,8 @@ export class Director {
   meta!: Meta;
   save!: SaveData;
   encounter: { id: EncounterId; scene: EncounterScene } | null = null;
+  private lastResonance = -Infinity;
+  private memoriesShown = false;
 
   async boot(stage: HTMLElement) {
     try {
@@ -64,11 +67,19 @@ export class Director {
       // labels in the world are drawn by Pixi, which needs the fonts before it renders text
       await Promise.race([
         Promise.all(
-          ['600 21px "Cormorant Garamond"', '500 16px "Cormorant Garamond"', '15px "Albert Sans"', 'italic 18px "Source Serif 4"'].map((f) => document.fonts.load(f)),
+          ['600 21px "Cormorant Garamond"', '500 16px "Cormorant Garamond"', '15px "Albert Sans"', 'italic 18px "Source Serif 4"', '19px "Source Serif 4"'].map((f) =>
+            document.fonts.load(f),
+          ),
         ),
         new Promise((r) => setTimeout(r, 2500)),
       ]).catch(() => undefined);
       this.game = await Game.create(stage);
+      this.game.onFrame = () => {
+        const o = this.game.organism;
+        const s = this.game.camera.toScreen(o.x, o.y);
+        organismAnchor.x = s.x;
+        organismAnchor.y = s.y;
+      };
       this.game.quality.reducedMotion ||= this.save.settings.reducedMotion;
       this.applyMotion();
       this.model = new WorldModel(this.bible, this.xrefs, this.save, graph as GraphData);
@@ -132,6 +143,49 @@ export class Director {
     this.world?.syncNodes();
     store.set({ stats: this.model.stats() });
     audio.setRichness(this.model.richness());
+    // what has been found stays with the organism (the first time without the arrival)
+    this.game.organism.setMemories(this.memories(), this.memoriesShown);
+    this.memoriesShown = true;
+  }
+
+  /** Discoveries as the organism carries them: passages by colour, encounters as rings. */
+  private memories(): Memory[] {
+    return [...this.save.discoveries]
+      .sort((a, b) => a.at - b.at)
+      .map((d): Memory => {
+        if (d.kind === 'encounter' && d.encounter) {
+          return { key: `encounter:${d.encounter}`, kind: 'encounter', color: ENCOUNTERS.find((e) => e.id === d.encounter)!.color };
+        }
+        const book = BOOKS[this.bible.ref(d.start).b];
+        return { key: `${d.start}-${d.end}`, kind: book.t === 'OT' ? 'ot' : 'nt', color: GROUPS[book.group].color };
+      });
+  }
+
+  /** How far a resonance reaches: further as the organism carries more. */
+  resonanceRadius() {
+    return 650 + 40 * Math.min(10, this.save.discoveries.length);
+  }
+
+  /** A wave of light from the organism: hidden links nearby come to light and stay. */
+  resonate() {
+    const s = store.get();
+    if (s.phase !== 'world' || s.panel) return;
+    if (this.game.time - this.lastResonance < 3) return;
+    this.lastResonance = this.game.time;
+    audio.unlock();
+    audio.resonance();
+    const org = this.game.organism;
+    const hidden = this.model.hiddenNear(org.x, org.y, this.resonanceRadius(), 8);
+    this.world.resonate(this.resonanceRadius(), hidden, () => {
+      if (!hidden.length) {
+        toast('Hier klingt nichts weiter an.', this.save.discoveries.length ? 'An anderer Stelle vielleicht – oder nach weiteren Entdeckungen.' : 'Entdecke zuerst eine Stelle.');
+        return;
+      }
+      this.model.reveal(hidden.map((h) => h.chapter));
+      persist(this.save);
+      const words = ['', 'Ein fernes Licht klingt', 'Zwei ferne Lichter klingen', 'Drei ferne Lichter klingen', 'Vier ferne Lichter klingen', 'Fünf ferne Lichter klingen', 'Sechs ferne Lichter klingen', 'Sieben ferne Lichter klingen', 'Acht ferne Lichter klingen'];
+      toast(`${words[hidden.length]} an.`, 'Querverweise aus deinen Entdeckungen, die bisher verborgen waren.');
+    });
   }
 
   private remember() {
@@ -398,6 +452,14 @@ export class Director {
     audio.setRichness(this.model.richness());
     this.world.flare(chapter);
     this.game.input.enabled = true;
+    if (this.save.encounters.length && !this.save.tips.includes('resonance')) {
+      this.save.tips.push('resonance');
+      persist(this.save);
+      window.setTimeout(
+        () => toast('Was du entdeckst, leuchtet jetzt am Organismus mit.', 'Mit der Leertaste oder dem goldenen Knopf sendest du eine Resonanz aus: Verborgene Querverweise in der Nähe klingen an.', 9000),
+        1500,
+      );
+    }
   }
 
   // ── Settings ─────────────────────────────────────────────────────────
@@ -439,7 +501,7 @@ export class Director {
       director: this,
       state: () => ({
         phase: store.get().phase,
-        organism: { x: this.game.organism.x, y: this.game.organism.y },
+        organism: { x: this.game.organism.x, y: this.game.organism.y, carried: this.game.organism.carried },
         camera: { x: this.game.camera.x, y: this.game.camera.y, zoom: this.game.camera.zoom },
         encounter: this.encounter ? { id: this.encounter.id, objective: this.encounter.scene.objective(), ui: store.get().encounter } : null,
         nodes: [...this.model.nodes.values()].map((n) => ({ chapter: n.chapter, kind: n.kind, title: n.title, x: n.x, y: n.y, completed: n.completed })),

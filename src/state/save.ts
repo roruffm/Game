@@ -38,6 +38,8 @@ export interface SaveData {
   theme: string | null;
   /** One-time hints already shown. */
   tips: string[];
+  /** Chapters a resonance brought to light beyond the usual few hints per discovery. */
+  revealed: number[];
 }
 
 const KEY = 'wortstrom.save.v1';
@@ -53,6 +55,7 @@ export const freshSave = (reducedMotion = false): SaveData => ({
   zoom: null,
   theme: null,
   tips: [],
+  revealed: [],
 });
 
 export function loadSave(): { data: SaveData; existed: boolean } {

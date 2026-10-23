@@ -110,7 +110,11 @@ export class Game {
     this.scene?.update(dt, this.time);
     this.camera.apply(this.worldLayer);
     this.drawNebula();
+    this.onFrame();
   }
+
+  /** Runs after every frame, once the camera has moved (e.g. to place text beside the organism). */
+  onFrame: () => void = () => {};
 
   /** Slow parallax so depth is felt while gliding; colours follow the scene. */
   private drawNebula() {

@@ -36,6 +36,32 @@ describe('World Engine', () => {
     expect(thread?.links.some((l) => l.votes === 23)).toBe(true);
   });
 
+  it('lets a resonance bring hidden links near a point to light, and keeps them', async () => {
+    const { m, save } = model();
+    await m.init();
+    await m.discover(discovery('LUK 15:11-32', 'encounter'));
+    const shown = [...m.nodes.values()].filter((n) => n.kind === 'hint').length;
+    // around the whole world: every hidden link counts
+    const hidden = m.hiddenNear(0, 0, 1e6, 50);
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const h of hidden) {
+      expect(m.nodes.has(h.chapter)).toBe(false);
+      expect(h.votes).toBeGreaterThan(0);
+    }
+    expect(hidden.map((h) => h.votes)).toEqual([...hidden.map((h) => h.votes)].sort((a, b) => b - a));
+    // near a point: only chapters within the radius
+    const p = m.position(hidden[0].chapter);
+    for (const h of m.hiddenNear(p.x, p.y, 300)) {
+      const q = m.position(h.chapter);
+      expect(Math.hypot(q.x - p.x, q.y - p.y)).toBeLessThanOrEqual(300);
+    }
+    m.reveal(hidden.slice(0, 3).map((h) => h.chapter));
+    expect([...m.nodes.values()].filter((n) => n.kind === 'hint').length).toBe(shown + 3);
+    expect(save.revealed).toHaveLength(3);
+    for (const h of hidden.slice(0, 3)) expect(m.threads.some((t) => t.b === h.chapter && t.kind === 'hint')).toBe(true);
+    expect(m.hiddenNear(0, 0, 1e6, 50).some((h) => save.revealed.includes(h.chapter))).toBe(false);
+  });
+
   it('connects two discovered passages with a solid thread', async () => {
     const { m } = model();
     await m.init();

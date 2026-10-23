@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 export interface GameState {
   phase: string;
-  organism: { x: number; y: number };
+  organism: { x: number; y: number; carried: number };
   camera: { x: number; y: number; zoom: number };
   encounter: { id: string; objective: { x: number; y: number } | null; ui: { phase: number; done: boolean; beats: { ref: string; kind: string }[] } } | null;
   nodes: { chapter: number; kind: string; title: string; x: number; y: number; completed: boolean }[];
@@ -37,7 +37,7 @@ export async function startGame(page: Page) {
 }
 
 /** Plays an encounter by following its objective with the mouse, as a player would. */
-export async function playEncounter(page: Page, maxMs = 260_000) {
+export async function playEncounter(page: Page, maxMs = 380_000) {
   const vp = page.viewportSize()!;
   const t0 = Date.now();
   while (Date.now() - t0 < maxMs) {

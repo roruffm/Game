@@ -21,6 +21,7 @@ Danach `http://localhost:5173` öffnen. Für eine Produktionsfassung: `npm run b
 | Eintreten / Folgen | zweiter Klick oder Enter | zweites Tippen oder Knopf auf der Karte |
 | Lichtfaden reiten | an einem Faden entlang gleiten, oder ein fernes Licht anklicken | entlang ziehen, oder ein fernes Licht antippen |
 | Strömung verlassen | seitlich hinaussteuern oder kräftig dagegen | seitlich hinausziehen |
+| Resonanz | Leertaste oder goldener Knopf | goldener Knopf unten rechts |
 | Zoom | Mausrad, + / − | zwei Finger |
 | Übersicht, Karte | J, M | Symbole oben rechts |
 | Schließen, Begegnung verlassen | Esc | Symbol oben rechts |
@@ -34,6 +35,26 @@ zusammen: die gefangenen Wörter zuerst und golden, die übrigen danach. Der Ver
 vollständig, es wird nichts gezählt. Darunter stehen der Querverweis aus dem Datensatz mit seinen
 Stimmen und der Weg zum ganzen Vergleich. Fäden zu fernen Lichtern fließen nur zum Unbekannten hin,
 Fäden zwischen entdeckten Stellen in beide Richtungen.
+
+### Verse wie Gedanken
+
+Bibeltexte stehen nicht in einem Kasten am Bildschirmrand. Sie steigen neben dem Organismus auf,
+auf seiner Augenhöhe, Zeile für Zeile in ruhigem Lesetempo, und schweben mit ihm mit. Wenn der
+nächste Vers kommt, löst sich der vorige nach oben auf. Auf breiten Bildschirmen steht der Text
+auf der Seite, zu der der Organismus gerade nicht unterwegs ist; auf schmalen steigt er über ihm
+auf. Unter jedem Vers steht, woher er kommt (Lutherbibel 1912, bei Querverweisen der Datensatz).
+
+### Der Organismus wächst mit
+
+Was du entdeckst, bleibt am Organismus sichtbar: kleine Lichter entlang des Körpers in den Farben
+der Bücher, Stellen aus dem Alten Testament mit goldenem Schimmer, und für jede Begegnung ein
+Lichtring um den Kopf. Mit mehr Entdeckungen wird der Körper länger. Das zeigt, was gefunden wurde,
+es ist kein Punktestand.
+
+Eine **Resonanz** (Leertaste oder goldener Knopf) sendet eine Lichtwelle aus. Wo sie an
+Querverweisen aus deinen Entdeckungen vorbeikommt, die die Welt noch nicht zeigt (jede Entdeckung
+zeigt sonst nur ihre stärksten Verbindungen), klingen diese an und bleiben als ferne Lichter. Die
+Welle reicht weiter, je mehr der Organismus trägt.
 
 Hoch- und Querformat werden unterstützt. In den Einstellungen lassen sich Ton, Lautstärke,
 reduzierte Animationen, eine reduzierte Ansicht und die Mindeststimmen der Querverweise einstellen;
@@ -108,11 +129,13 @@ src/
   content/      Redaktionelles: Begegnungen, Themen, Erklärungen (vom Datensatz getrennt)
   engine/       Game Engine: Pixi-App, Kamera, Eingabe, Organismus, Partikel, Rauschen, Texturen
   world/        World Engine: model.ts (Logik, testbar ohne Grafik), scene.ts (Darstellung),
-                ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung)
+                ride.ts (Lichtfaden-Strömung, ohne Grafik), rideView.ts (ihre Darstellung),
+                resonanceView.ts (die Resonanz-Welle)
   encounters/   Encounter Engine (kit.ts) und je ein Modul pro Begegnung
   audio/        Audio Engine: Klangflächen je Stimmung, wächst mit der Welt
-  state/        Speicher (save.ts) und UI-Zustand (store.ts)
-  ui/           React-Oberfläche: HUD, Fokuskarte, Leser, Verbindungen, Übersicht, Einstellungen
+  state/        Speicher (save.ts), UI-Zustand (store.ts), Lesetempo der Verse (reading.ts)
+  ui/           React-Oberfläche: HUD, Fokuskarte, Verse als Gedanken (Thought.tsx), Leser, Verbindungen,
+                Übersicht, Einstellungen
   director.ts   verbindet alles: Laden, Szenenwechsel, Entdecken, Panels
 ```
 
