@@ -98,3 +98,33 @@ test('the editorial explanation is labelled apart from the data', async ({ page 
   await expect(sheet.locator('.tier.editorial')).toContainText('Tot – und lebendig');
   await expect(sheet.locator('.tier.auto')).toContainText('lebendig');
 });
+
+test('the organism carries what was found, and a resonance brings hidden links to light', async ({ page }) => {
+  const errors = watchErrors(page);
+  await afterStorm(page);
+  // the encounter stays with the organism as a ring of light
+  await expect.poll(async () => (await state(page)).organism.carried).toBe(1);
+
+  // stand where a hidden link of the storm points, and let a resonance ring out
+  const target = await page.evaluate(() => {
+    type D = { model: { hiddenNear: (x: number, y: number, r: number, n: number) => { chapter: number }[]; position: (c: number) => { x: number; y: number } }; game: { organism: { place: (x: number, y: number) => void } } };
+    const d = (window as unknown as { wortstrom: { director: D } }).wortstrom.director;
+    const h = d.model.hiddenNear(0, 0, 1e6, 1)[0];
+    const p = d.model.position(h.chapter);
+    d.game.organism.place(p.x + 60, p.y);
+    return h.chapter;
+  });
+  await page.waitForTimeout(500);
+  const before = (await state(page)).nodes.filter((n) => n.kind === 'hint').length;
+  await page.getByRole('button', { name: 'Resonanz' }).click();
+  await expect(page.locator('.toast p').filter({ hasText: /klingt an|klingen an/ })).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => (await state(page)).nodes.find((n) => n.chapter === target)?.kind).toBe('hint');
+  expect((await state(page)).nodes.filter((n) => n.kind === 'hint').length).toBeGreaterThan(before);
+
+  // what came to light stays after a reload
+  await page.waitForTimeout(500);
+  await page.reload();
+  await page.locator('#start').click();
+  await expect.poll(async () => (await state(page)).nodes.find((n) => n.chapter === target)?.kind).toBe('hint');
+  expect(errors).toEqual([]);
+});

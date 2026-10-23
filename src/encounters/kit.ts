@@ -9,7 +9,8 @@ import type { EncounterInfo } from '../content/encounters';
 import type { Game, Scene } from '../engine/game';
 import type { Steer } from '../engine/input';
 import { textures } from '../engine/textures';
-import { store, type Beat } from '../state/store';
+import { readingHold } from '../state/reading';
+import { organismAnchor, store, type Beat } from '../state/store';
 import type { CrossRefs } from '../xref/crossrefs';
 
 export interface EncounterApi {
@@ -41,6 +42,7 @@ export abstract class EncounterScene implements Scene {
   private queue: Beat[] = [];
   private shownAt = -Infinity;
   private hold = 0;
+  private seq = 0;
   private schedule: { at: number; run: () => void }[] = [];
   protected steeringLocked = false;
   protected finished = false;
@@ -65,7 +67,17 @@ export abstract class EncounterScene implements Scene {
     g.camera.zoom = g.camera.targetZoom;
     this.publish({ hint: null, done: false });
     this.start();
-    g.camera.jump(this.org.x, this.org.y + (g.camera.height * 0.12) / g.camera.zoom);
+    g.camera.jump(this.org.x, this.org.y + this.lift());
+  }
+
+  /**
+   * Where the camera holds the organism. The verses rise beside it on wide screens; on narrow
+   * ones they rise above it, so the organism sits a little lower.
+   */
+  private lift() {
+    const cam = this.game.camera;
+    const narrow = cam.width < 720 && cam.height >= 500;
+    return narrow ? (-cam.height * 0.12) / cam.zoom : 0;
   }
 
   leave() {
@@ -99,9 +111,10 @@ export abstract class EncounterScene implements Scene {
     if (this.org.y < b.y + pad) this.org.vy += (b.y + pad - this.org.y) * dt * 4;
     if (this.org.y > b.y + b.h - pad) this.org.vy -= (this.org.y - (b.y + b.h - pad)) * dt * 4;
     this.step(dt);
-    // keep the organism in the upper part of the screen; the verses sit below
-    const lift = (g.camera.height * 0.12) / g.camera.zoom;
-    g.camera.follow(this.org.x + this.org.vx * 0.3, this.org.y + this.org.vy * 0.3 + lift, dt, 2.4);
+    g.camera.follow(this.org.x + this.org.vx * 0.3, this.org.y + this.org.vy * 0.3 + this.lift(), dt, 2.4);
+    // the verses keep clear of the side where the story goes on
+    const goal = this.objective();
+    organismAnchor.avoid = goal && Math.abs(goal.x - this.org.x) > 60 ? Math.sign(goal.x - this.org.x) : 0;
   }
 
   /** Runs `run` after `seconds`. */
@@ -132,12 +145,13 @@ export abstract class EncounterScene implements Scene {
   }
 
   private showNext() {
-    const beat = this.queue.shift();
-    if (!beat) return;
+    const next = this.queue.shift();
+    if (!next) return;
+    const beat = { ...next, seq: ++this.seq };
     this.beats = [...this.beats, beat].slice(-4);
     this.shownAt = this.t;
-    // roughly the time it takes to read the verse calmly
-    this.hold = Math.max(2.5, Math.min(8, 1.5 + beat.text.length / 24));
+    // the verse unfolds line by line; it stays until it can have been read calmly
+    this.hold = readingHold(beat.text);
     this.publish({});
     audio.chime('beat');
   }

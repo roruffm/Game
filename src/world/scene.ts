@@ -10,10 +10,11 @@ import type { Game, Scene } from '../engine/game';
 import { mixColor } from '../engine/organism';
 import { DriftField, Stream } from '../engine/particles';
 import { textures } from '../engine/textures';
-import { focusAnchor, store, type Focus } from '../state/store';
+import { focusAnchor, organismAnchor, store, type Focus } from '../state/store';
 import type { Thread, WorldModel, WorldNode } from './model';
 import { bezier, catchCurrent, Current, hash, placeWords, rideSpeed, threadCurve, ThreadPath, type RideInfo } from './ride';
 import { RideView } from './rideView';
+import { ResonanceView, type ResonanceMark } from './resonanceView';
 
 export interface WorldHooks {
   activate(chapter: number): void;
@@ -83,6 +84,7 @@ export class WorldScene implements Scene {
   private ride: Ride | null = null;
   /** Ride views fading out after a ride ended. */
   private fadingRides: RideView[] = [];
+  private resonances: ResonanceView[] = [];
   private paths = new Map<string, ThreadPath>();
   /** Brief pause after leaving a current, so it does not catch the organism again at once. */
   private rideCooldown = 0;
@@ -352,6 +354,34 @@ export class WorldScene implements Scene {
     this.fadingRides.push(ride.view);
   }
 
+  /**
+   * Sends a wave of light out from the organism. Hidden links within reach glimmer as it passes,
+   * lights already in the world answer; `done` runs when the wave has reached its full radius.
+   */
+  resonate(radius: number, hidden: { chapter: number }[], done: () => void) {
+    const org = this.game.organism;
+    const marks: (ResonanceMark & { chapter: number })[] = hidden.map((h) => ({ ...this.model.position(h.chapter), glimmer: true, chapter: h.chapter }));
+    for (const n of this.model.nodes.values()) {
+      if (this.reducedView && n.kind === 'hint') continue;
+      if (Math.hypot(n.x - org.x, n.y - org.y) <= radius) marks.push({ x: n.x, y: n.y, glimmer: false, chapter: n.chapter });
+    }
+    let rung = 0;
+    const view = new ResonanceView(
+      org.x,
+      org.y,
+      radius,
+      marks,
+      (i) => {
+        const m = marks[i];
+        if (m.glimmer) audio.pluck(rung++);
+        else this.flare(m.chapter);
+      },
+      done,
+    );
+    this.root.addChildAt(view.world, this.root.getChildIndex(this.nodeLayer));
+    this.resonances.push(view);
+  }
+
   /** For tests and the console. */
   rideState() {
     const r = this.ride;
@@ -411,6 +441,8 @@ export class WorldScene implements Scene {
     }
     if (!this.ride) org.maxSpeed = this.autopilot ? 520 : 260;
     org.update(dt, steer);
+    // text beside the organism keeps clear of where it is heading
+    organismAnchor.avoid = Math.abs(org.vx) > 50 ? Math.sign(org.vx) : 0;
     const lead = this.ride ? 0.5 : 0.35;
     cam.follow(org.x + org.vx * lead, org.y + org.vy * lead, dt, this.autopilot || this.ride ? 4 : 2.6);
 
@@ -420,6 +452,11 @@ export class WorldScene implements Scene {
         audio.pluck(this.ride.caught.length - 1);
       }
     }
+    this.resonances = this.resonances.filter((v) => {
+      if (v.update(dt, cam.zoom)) return true;
+      v.destroy();
+      return false;
+    });
     for (const v of this.fadingRides) v.update(dt, cam, org, Infinity);
     this.fadingRides = this.fadingRides.filter((v) => {
       if (!v.finished) return true;
@@ -851,6 +888,7 @@ export class WorldScene implements Scene {
   destroy() {
     this.endRide(false);
     for (const v of this.fadingRides) v.destroy();
+    for (const v of this.resonances) v.destroy();
     this.overlay.destroy({ children: true });
     this.root.destroy({ children: true });
   }

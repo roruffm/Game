@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Range, Verse } from '../bible/bible';
 import { director } from '../director';
 
-export type IconName = 'map' | 'journal' | 'sound' | 'mute' | 'settings' | 'close' | 'plus' | 'minus' | 'travel' | 'read' | 'leave' | 'search';
+export type IconName = 'map' | 'journal' | 'sound' | 'mute' | 'settings' | 'close' | 'plus' | 'minus' | 'travel' | 'read' | 'leave' | 'search' | 'pulse';
 
 const PATHS: Record<IconName, string> = {
   map: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 3.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z',
@@ -19,6 +19,7 @@ const PATHS: Record<IconName, string> = {
   read: 'M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4V5Zm16 0h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6V5Z',
   leave: 'M14 7l-5 5 5 5M9 12h11M4 4v16',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 4 4',
+  pulse: 'M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8.5 8.5a5 5 0 0 0 0 7m7-7a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8m12.8-12.8a9 9 0 0 1 0 12.8',
 };
 
 export function Icon({ name }: { name: IconName }) {

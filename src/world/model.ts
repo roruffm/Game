@@ -158,7 +158,9 @@ export class WorldModel {
       node.discoveries.push(d);
     }
 
-    // threads: known ↔ known for every link; known → hint for the strongest unknown chapters
+    // threads: known ↔ known for every link; known → hint for the strongest unknown chapters,
+    // and for the chapters a resonance brought to light
+    const revealed = new Set(this.save.revealed);
     const threads = new Map<string, Thread>();
     const oldThreads = new Map(this.threads.map((t) => [t.id, t]));
     const addThread = (a: number, b: number, kind: Thread['kind'], g: TargetGroup) => {
@@ -182,8 +184,8 @@ export class WorldModel {
         const existing = this.nodes.get(g.chapter);
         if (existing && existing.kind !== 'hint' && this.isKnown(g.chapter)) {
           addThread(d.chapter, g.chapter, 'known', g);
-        } else if (hints < limit) {
-          hints++;
+        } else if (hints < limit || revealed.has(g.chapter)) {
+          if (!revealed.has(g.chapter)) hints++;
           if (!this.nodes.has(g.chapter)) {
             const node = this.makeNode(g.chapter, 'hint', now);
             const prev = old.get(g.chapter);
@@ -196,6 +198,32 @@ export class WorldModel {
     }
     this.threads = [...threads.values()].sort((x, y) => y.votes - x.votes);
     this.onChange();
+  }
+
+  /**
+   * Cross-references from discovered passages into unknown chapters near a point that the world
+   * does not show yet (each discovery only shows its strongest few). Strongest first.
+   */
+  hiddenNear(x: number, y: number, radius: number, max = 8): { chapter: number; from: number; votes: number }[] {
+    const found = new Map<number, { chapter: number; from: number; votes: number }>();
+    for (const d of this.save.discoveries) {
+      for (const g of this.groups.get(d) ?? []) {
+        if (this.nodes.has(g.chapter)) continue;
+        const p = this.position(g.chapter);
+        if (Math.hypot(p.x - x, p.y - y) > radius) continue;
+        const prev = found.get(g.chapter);
+        if (!prev || g.votes > prev.votes) found.set(g.chapter, { chapter: g.chapter, from: d.chapter, votes: g.votes });
+      }
+    }
+    return [...found.values()].sort((a, b) => b.votes - a.votes).slice(0, max);
+  }
+
+  /** Lets chapters found by a resonance glimmer as hints from now on. */
+  reveal(chapters: number[]) {
+    const fresh = chapters.filter((c) => !this.save.revealed.includes(c));
+    if (!fresh.length) return;
+    this.save.revealed.push(...fresh);
+    this.rebuild(false);
   }
 
   /** Links into a chapter from discovered passages (strongest first). */

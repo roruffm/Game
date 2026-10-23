@@ -29,6 +29,8 @@ export interface Beat {
   text: string;
   /** "bibel" for scripture, "hinweis" for guidance, "datensatz" for a cross-reference. */
   kind: 'bibel' | 'hinweis' | 'datensatz';
+  /** Counts up with every verse shown in an encounter, so repeated verses stay distinct. */
+  seq?: number;
 }
 
 export interface EncounterUi {
@@ -123,3 +125,9 @@ export function toast(text: string, sub?: string, ms = 4200) {
 
 /** Screen position of the focused node, written by the game every frame (not React state). */
 export const focusAnchor = { x: 0, y: 0, visible: false };
+
+/**
+ * Screen position of the organism, written every frame. `avoid` is the side the text beside it
+ * should keep free (1: the right, -1: the left), e.g. where the player is heading.
+ */
+export const organismAnchor = { x: 0, y: 0, avoid: 0 };

@@ -33,7 +33,17 @@ test('a node shows its title first, and only a second interaction enters', async
   await expect(page.locator('#focus-action')).toHaveText('Eintreten', { timeout: 60_000 });
   await page.keyboard.press('Enter');
   await expect(page.locator('.encounter h2')).toHaveText('Jesus stillt den Sturm');
-  await expect(page.locator('.beat.now figcaption')).toContainText('Markus 4,35');
+  // the verse rises beside the organism, at its eye level, not at the edge of the screen
+  const thought = page.locator('.thought');
+  await expect(thought.locator('.thought-ref')).toContainText('Markus 4,35 · Lutherbibel 1912');
+  await expect(thought.locator('.tl').first()).toContainText('Und an demselben Tage');
+  const now = await state(page);
+  const o = await screenOf(page, now.organism.x, now.organism.y);
+  const box = (await thought.boundingBox())!;
+  const beside = box.x > o.x + 20 || box.x + box.width < o.x - 20;
+  expect(beside).toBe(true);
+  expect(box.y + box.height).toBeGreaterThan(o.y - 40);
+  expect(box.y + box.height).toBeLessThan(o.y + 120);
   // Escape asks before leaving
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Verlassen', exact: true }).click();

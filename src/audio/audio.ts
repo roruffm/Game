@@ -187,6 +187,14 @@ class AudioEngine {
     steps[kind].forEach((n, i) => this.bell(BELLS[n % BELLS.length] * (kind === 'enter' ? 0.5 : 1), i * 0.16, kind === 'near' ? 0.04 : 0.07));
   }
 
+  /** A deep, open tone that rings out with a resonance. */
+  resonance() {
+    if (!this.ctx || !this.enabled) return;
+    this.bell(BELLS[0] / 2, 0, 0.09);
+    this.bell(BELLS[4] / 2, 0.14, 0.05);
+    this.bell(BELLS[0], 0.3, 0.03);
+  }
+
   /** A soft note for each word caught on a ride, climbing a little with every one. */
   pluck(step: number) {
     if (!this.ctx || !this.enabled) return;

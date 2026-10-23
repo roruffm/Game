@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // WebGL runs in software (SwiftShader) on CI machines, so frames are slow and timeouts generous.
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 300_000,
+  timeout: 420_000,
   expect: { timeout: 30_000 },
   workers: 1,
   reporter: [['list']],

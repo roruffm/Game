@@ -372,6 +372,23 @@ p {
   gap: 8px;
 }
 
+.icon-btn.resonance {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 112px);
+  width: 52px;
+  height: 52px;
+  margin-right: -4px;
+  border-color: rgba(255, 217, 138, 0.45);
+  color: var(--gold);
+  box-shadow: 0 0 22px rgba(255, 217, 138, 0.18);
+}
+
+.icon-btn.resonance:hover {
+  border-color: var(--gold);
+  background: rgba(255, 217, 138, 0.12);
+}
+
 /* ── Focus card ───────────────────────────────────────────── */
 
 .focus-card {
@@ -488,68 +505,15 @@ p {
   text-align: center;
 }
 
-.beats {
+.enc-hint {
   position: fixed;
   left: 50%;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  bottom: max(18px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(660px, calc(100vw - 32px));
-  display: grid;
-  gap: 8px;
-}
-
-.beat {
-  margin: 0;
-  text-shadow: 0 0 14px rgba(0, 0, 0, 0.95);
-}
-
-.beat.old {
-  font: 400 14px/1.45 var(--scripture);
-  color: var(--ink-dim);
-  opacity: 0.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.beat.now {
-  padding: 14px 18px 12px;
-  border-radius: 16px;
-  background: rgba(4, 8, 22, 0.66);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
-  animation: rise 0.8s ease-out both;
-}
-
-.beat.now blockquote {
-  margin: 0;
-  font: 400 clamp(17px, 2.4vw, 20px) / 1.55 var(--scripture);
-  color: var(--ink);
-}
-
-.beat.now figcaption {
-  margin-top: 8px;
-  font: 600 11px var(--ui);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-
-.beat.now.datensatz {
-  border-color: rgba(255, 226, 168, 0.45);
-}
-
-.beat.now.datensatz figcaption {
-  color: #ffe2a8;
-  text-transform: none;
-  letter-spacing: 0.02em;
-  font-size: 12px;
-}
-
-.enc-hint {
+  width: min(620px, calc(100vw - 32px));
   margin: 0;
   font-size: 13.5px;
+  text-align: center;
   color: var(--cyan);
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
 }
@@ -993,85 +957,123 @@ p {
   margin-bottom: 6px;
 }
 
-/* ── A ride's verse ───────────────────────────────────────── */
+/* ── Thoughts: verses beside the organism ─────────────────── */
 
-.reveal {
+.thought {
   position: fixed;
-  left: 50%;
-  bottom: max(20px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(620px, calc(100vw - 32px));
-  margin: 0;
-  padding: 14px 18px 12px;
-  border: 1px solid rgba(255, 226, 168, 0.45);
-  border-radius: 16px;
-  background: rgba(4, 8, 22, 0.74);
-  backdrop-filter: blur(6px);
-  animation: reveal-in 0.6s ease-out both;
-}
-
-@keyframes reveal-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 14px);
-  }
-}
-
-.reveal .kicker {
-  color: var(--gold);
-}
-
-.reveal blockquote {
-  margin: 4px 0 0;
-  font: 400 clamp(17px, 2.4vw, 20px) / 1.55 var(--scripture);
+  left: 0;
+  top: 0;
+  padding: 16px 24px;
+  font-family: var(--scripture);
+  line-height: 1.5;
   color: var(--ink);
+  will-change: transform;
 }
 
-.reveal .w {
-  display: inline-block;
-  animation: word-in 0.9s ease-out both;
+/* the cloud: a soft haze that keeps the words readable over the lights, without a frame */
+.thought::before {
+  content: '';
+  position: absolute;
+  inset: -30px -46px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(3, 7, 20, 0.7), rgba(3, 7, 20, 0.46) 55%, rgba(3, 7, 20, 0.16) 80%, rgba(3, 7, 20, 0));
+  filter: blur(16px);
 }
 
-.reveal .w.caught {
-  color: var(--gold);
-  text-shadow: 0 0 14px rgba(255, 200, 110, 0.55);
-  animation-name: word-caught;
+.thought-body {
+  position: relative;
 }
 
-@keyframes word-in {
+.thought-body.leaving {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 100%;
+  animation: thought-out 1.2s ease-in both;
+}
+
+.thought .tl,
+.thought .thought-ref,
+.thought .source-line,
+.thought .kicker {
+  text-shadow:
+    0 0 12px rgba(2, 4, 12, 0.95),
+    0 0 2px rgba(2, 4, 12, 0.9);
+}
+
+.thought .tl {
+  animation: thought-line 1s ease-out both;
+}
+
+.thought .thought-ref,
+.thought .source-line,
+.thought .thought-actions {
+  animation: thought-line 0.9s ease-out both;
+}
+
+@keyframes thought-line {
   from {
     opacity: 0;
+    transform: translateY(10px);
+    filter: blur(5px);
   }
 }
 
-@keyframes word-caught {
-  from {
+@keyframes thought-out {
+  to {
     opacity: 0;
-    transform: translateY(-16px) scale(1.12);
-    filter: blur(3px);
+    transform: translateY(-26px);
+    filter: blur(6px);
   }
 }
 
-.reveal figcaption {
-  margin-top: 8px;
-  font: 600 11px var(--ui);
-  letter-spacing: 0.12em;
+.thought-ref {
+  margin: 8px 0 0;
+  font: 600 10.5px/1.4 var(--ui);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold);
 }
 
-.reveal figcaption .alt {
+.thought-ref .alt {
   text-transform: none;
   letter-spacing: 0.02em;
   color: var(--ink-dim);
 }
 
-.reveal .source-line {
-  margin: 4px 0 10px;
+.thought.datensatz .thought-ref {
+  color: #ffe2a8;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 12px;
 }
 
-body.reduce-motion .reveal .w {
-  animation-delay: 0s !important;
+.thought .kicker {
+  color: var(--gold);
+}
+
+.thought .w.caught {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(255, 200, 110, 0.6);
+}
+
+.thought .source-line {
+  margin: 4px 0 0;
+  font-family: var(--ui);
+}
+
+.thought-actions {
+  margin-top: 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ── Toasts ───────────────────────────────────────────────── */
@@ -1151,9 +1153,8 @@ body.reduce-motion .reveal .w {
     display: none;
   }
 
-  .beat.now blockquote,
-  .reveal blockquote {
-    font-size: 16px;
+  .icon-btn.resonance {
+    bottom: max(18px, env(safe-area-inset-bottom));
   }
 
   .enc-head .phases {
@@ -1170,27 +1171,6 @@ body.reduce-motion *::after {
 
 /* Phones held sideways: little height, so the verse moves to the right-hand side. */
 @media (max-height: 500px) and (min-width: 600px) {
-  .beats,
-  .reveal {
-    left: auto;
-    right: max(16px, env(safe-area-inset-right));
-    transform: none;
-    width: min(440px, 52vw);
-  }
-
-  .beat.now blockquote {
-    font-size: 15px;
-    line-height: 1.45;
-  }
-
-  .reveal {
-    animation-name: word-in;
-  }
-
-  .beat.old {
-    display: none;
-  }
-
   .enc-head h2 {
     font-size: 21px;
   }
@@ -1207,10 +1187,6 @@ body.reduce-motion *::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal .w {
-    animation-delay: 0s !important;
-  }
-
   *,
   *::before,
   *::after {
